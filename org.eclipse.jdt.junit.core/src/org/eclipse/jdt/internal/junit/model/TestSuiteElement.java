@@ -38,6 +38,18 @@ public class TestSuiteElement extends TestElement implements ITestSuiteElement {
 			return super.getStatus().convertToResult();
 		}
 	}
+	
+	//@Override
+	public boolean hasAnyIgnoredTestResults() {
+		ITestElement[] children= getChildren();
+		for (int i= 0; i < children.length; i++) {
+			ITestElement test  = children[i];
+			if (test.hasAnyIgnoredTestResults()) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 	/* (non-Javadoc)
 	 * @see org.eclipse.jdt.junit.ITestSuiteElement#getSuiteTypeName()

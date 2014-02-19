@@ -217,6 +217,10 @@ public abstract class TestElement implements ITestElement {
 		}
 		return getStatus().convertToResult();
 	}
+	
+	public boolean hasAnyIgnoredTestResults() {
+		return getStatus().convertToResult()==Result.UNDEFINED || getStatus().convertToResult()==Result.IGNORED;
+	}
 
 	/* (non-Javadoc)
 	 * @see org.eclipse.jdt.junit.ITestElement#getTestRunSession()
