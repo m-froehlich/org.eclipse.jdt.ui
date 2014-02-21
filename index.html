@@ -41,35 +41,27 @@
 <li>Showing nice comparison messages for some assertj failures.
 <img src="https://raw2.github.com/azachar/org.eclipse.jdt.ui/R4_3_1-bug-trace-beta/better-junit-testing-2_0.png" alt="Eclipse Test Integration 2.0">
 </li>
-</ul><h3>
-<a name="how-to-try-it" class="anchor" href="#how-to-try-it"><span class="octicon octicon-link"></span></a>How to try it?</h3>
+</ul><h2>
+<a name="installation-into-eclipse-kepler-workspace" class="anchor" href="#installation-into-eclipse-kepler-workspace"><span class="octicon octicon-link"></span></a>Installation into Eclipse Kepler Workspace</h2>
 
 <ol>
 <li>
-<p>Clone the source code from </p>
-
-<p><a href="https://github.com/azachar/assertj-core/tree/1_6_0_dev_fork_DescriptiveAssertionException">https://github.com/azachar/assertj-core/tree/1_6_0_dev_fork_DescriptiveAssertionException</a></p>
-</li>
-<li>
-<p>Compile assertj-core 1.6.0-snapshost by </p>
-
-<p>mvn clean install</p>
-</li>
-<li>
 <p>Clone the source code of the patched Eclipse plugins from </p>
 
-<p><a href="https://github.com/azachar/org.eclipse.jdt.ui">https://github.com/azachar/org.eclipse.jdt.ui</a> from the default branch (R4_3_1_all-features-merged)</p>
+<pre><code>git clone https://github.com/azachar/org.eclipse.jdt.ui from the default branch (R4_3_1_all-features-merged)
+</code></pre>
 </li>
 <li>
 <p>Ensure that you are running Eclipse PDE Kepler SR-1.</p>
 
 <p>Import the following projects into your workspace </p>
 
-<p>org.eclipse.jdt.ui/org.eclipse.jdt.junit</p>
+<pre><code>org.eclipse.jdt.ui/org.eclipse.jdt.junit
 
-<p>org.eclipse.jdt.ui/org.eclipse.jdt.junit.core</p>
+org.eclipse.jdt.ui/org.eclipse.jdt.junit.core
 
-<p>org.eclipse.jdt.ui/org.eclipse.jdt.junit4.runtime</p>
+org.eclipse.jdt.ui/org.eclipse.jdt.junit4.runtime
+</code></pre>
 
 <p>Install these 3 plugins into your Eclipse Kepler by</p>
 
@@ -79,20 +71,37 @@
 
 <p>c) Press Finish button and wait until it will be installed into your Eclipse Workspace Only (which enables you to test it).</p>
 </li>
-<li>
-<p>Use assertJ's assertThat(a).isEqualToComparingFieldByField(b)
-or simply import to your Eclipse this sample project and run as your junit project within your Eclipse.</p>
-
-<p><a href="https://github.com/azachar/assertj-core/tree/1_6_0_dev_fork_DescriptiveAssertionException/example">https://github.com/azachar/assertj-core/tree/1_6_0_dev_fork_DescriptiveAssertionException/example</a></p>
-</li>
 </ol><p>Now you are able to see the nice comparison of failed fields in your junit view called "Bug Trace" that shows a quick overview of failed tests elements.</p>
 
-<p>Also in the stacktrace for some assertj exception (initially for comparison field by field of two objects) you click on the first line in the stacktrace of your failed test to open "visual" comparision.</p>
+<p>Are you interested, wanted to see more? Check out beta version:</p>
 
 <h3>
 <a name="beta" class="anchor" href="#beta"><span class="octicon octicon-link"></span></a>Beta</h3>
 
 <p>In the branch <a href="https://github.com/azachar/org.eclipse.jdt.ui/tree/R4_3_1-bug-trace-beta">https://github.com/azachar/org.eclipse.jdt.ui/tree/R4_3_1-bug-trace-beta</a> you can find the latest release of the pretty diff based visualization of failures. </p>
+
+<h2>
+<a name="using-assertj-with-nice-failures-visualization" class="anchor" href="#using-assertj-with-nice-failures-visualization"><span class="octicon octicon-link"></span></a>Using AssertJ with nice failures visualization</h2>
+
+<ol>
+<li>Clone the source code from </li>
+</ol><pre><code>git clone https://github.com/azachar/assertj-core/tree/1_6_0_dev_fork_DescriptiveAssertionException
+</code></pre>
+
+<ol>
+<li>
+<li>
+<li>Compile assertj-core 1.6.0-snapshost by </li>
+</ol><pre><code>   mvn clean install
+</code></pre>
+
+<ol>
+<li>Use assertJ's assertThat(a).isEqualToComparingFieldByField(b)
+or simply import to your Eclipse this sample project and run as your junit project within your Eclipse.</li>
+</ol><pre><code>  git clone https://github.com/azachar/assertj-core/tree/1_6_0_dev_fork_DescriptiveAssertionException/example
+</code></pre>
+
+<p>Also in the stacktrace for some assertj exception (initially for comparison field by field of two objects) you click on the first line in the stacktrace of your failed test to open "visual" comparision.</p>
       </section>
     </div>
 
