@@ -29,23 +29,24 @@
       <div class="inner clearfix">
         <section id="main-content">
           <h1>
-<a name="features" class="anchor" href="#features"><span class="octicon octicon-link"></span></a>Features</h1>
-
-<p>Currently there are implemented 2 features </p>
+<a name="new-features" class="anchor" href="#new-features"><span class="octicon octicon-link"></span></a>New Features</h1>
 
 <ul>
-<li>Showing ignored / skipped tests in Eclipse View</li>
-<li>Showing nice comparison messages for some AssertJ failures.</li>
-</ul><p><img src="https://raw2.github.com/azachar/org.eclipse.jdt.ui/R4_3_1-bug-trace-beta/better-junit-testing-2_0.png" alt="Eclipse Test Integration 2.0"></p>
+<li>Elimination of search for a failure in the stack trace</li>
+<li>Shows failures clearly in the new inline <strong>Bug Trace</strong> viewer </li>
+<li>Shows colored differences between <em>expected</em> and <em>actual</em> values</li>
+<li>Ability to filter <code>@Ignored</code> tests</li>
+<li>Some complex failures from the AssertJ project (fork is provided here) are visualized in the inline <strong>Bug trace</strong> view.</li>
+</ul><p><img src="https://raw2.github.com/azachar/org.eclipse.jdt.ui/master/better-junit-testing-2_0.png" alt="Eclipse Test Integration 2.0"></p>
 
 <h2>
 <a name="installation-into-eclipse-kepler-workspace" class="anchor" href="#installation-into-eclipse-kepler-workspace"><span class="octicon octicon-link"></span></a>Installation into Eclipse Kepler Workspace</h2>
 
 <ol>
 <li>
-<p>Clone the source code of the patched Eclipse plugins from </p>
+<p>Clone the source code of the forked Eclipse Kepler 4.3.1 from </p>
 
-<pre><code>git clone -b R4_3_1_all-features-merged https://github.com/azachar/org.eclipse.jdt.ui
+<pre><code>git clone -b master https://github.com/azachar/org.eclipse.jdt.ui
 </code></pre>
 </li>
 <li>
@@ -66,26 +67,17 @@ org.eclipse.jdt.ui/org.eclipse.jdt.junit4.runtime
 
 <p>b) Choose <strong>Install into host. Repository</strong></p>
 
-<p>c) Press Finish button and wait until it will be installed into your Eclipse Workspace Only (which enables you to test it).</p>
+<p>c) Press Finish button and wait until it will be installed into your Eclipse Workspace.</p>
 </li>
-</ol><p>Now you are able to see the nice comparison of failed fields in your junit view called "Bug Trace" that shows a quick overview of failed tests elements.</p>
-
-<p>Are you interested, wanted to see more? Check out beta version:</p>
-
-<h3>
-<a name="beta" class="anchor" href="#beta"><span class="octicon octicon-link"></span></a>Beta</h3>
-
-<p>In the branch <strong>R4_3_1-all-features-merged-beta</strong></p>
-
-<pre><code> git clone -b R4_3_1-all-features-merged-beta https://github.com/azachar/org.eclipse.jdt.ui
-</code></pre>
-
-<p>you can find the latest release of the pretty diff based visualization of failures. </p>
+</ol><p>Now you are able to see the clearly failures in your junit view called ****Bug Trace**** that shows a quick overview of failed tests elements.</p>
 
 <h2>
-<a name="using-assertj-with-nice-failures-visualization" class="anchor" href="#using-assertj-with-nice-failures-visualization"><span class="octicon octicon-link"></span></a>Using AssertJ with nice failures visualization</h2>
+<a name="assertj-with-colored-failures-visualization" class="anchor" href="#assertj-with-colored-failures-visualization"><span class="octicon octicon-link"></span></a>AssertJ with colored failures visualization</h2>
 
-<p>Using previous enhanced Eclipse you can now extend your tests by the latest assertj fork that allows to do comparison like this:</p>
+<p>I have modified AssertJ project in order to provide more clear visualization of failures. Currently are supported only following asserts:</p>
+
+<pre><code>assertThat(a).isEqualToComparingFieldByField(b)
+</code></pre>
 
 <p><img src="https://raw2.github.com/azachar/org.eclipse.jdt.ui/R4_3_1-bug-trace-beta/assertj-better-visualization.png" alt="Complex comparison for AssertJ"></p>
 
@@ -106,7 +98,7 @@ org.eclipse.jdt.ui/org.eclipse.jdt.junit4.runtime
 </code></pre>
 </li>
 <li>
-<p>Use assertJ's assertThat(a).isEqualToComparingFieldByField(b)
+<p>Use assertJ's <code>assertThat(a).isEqualToComparingFieldByField(b)</code>
 or simply import to your Eclipse this sample project and run as your junit project within your Eclipse.</p>
 
 <pre><code>assertj-core/example
@@ -121,11 +113,11 @@ or simply import to your Eclipse this sample project and run as your junit proje
         </section>
 
         <aside id="sidebar">
-          <a href="https://github.com/azachar/org.eclipse.jdt.ui/zipball/R4_3_1-all-features-merged-beta" class="button">
+          <a href="https://github.com/azachar/org.eclipse.jdt.ui/zipball/master" class="button">
             <small>Download</small>
             .zip file
           </a>
-          <a href="https://github.com/azachar/org.eclipse.jdt.ui/tarball/R4_3_1-all-features-merged-beta" class="button">
+          <a href="https://github.com/azachar/org.eclipse.jdt.ui/tarball/master" class="button">
             <small>Download</small>
             .tar.gz file
           </a>
@@ -137,6 +129,16 @@ or simply import to your Eclipse this sample project and run as your junit proje
       </div>
     </div>
 
-  
+            <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+          </script>
+          <script type="text/javascript">
+            try {
+              var pageTracker = _gat._getTracker("UA-48347805-1");
+            pageTracker._trackPageview();
+            } catch(err) {}
+          </script>
+
   </body>
 </html>
