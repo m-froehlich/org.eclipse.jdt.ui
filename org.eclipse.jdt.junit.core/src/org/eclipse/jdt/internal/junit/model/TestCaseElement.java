@@ -68,6 +68,11 @@ public class TestCaseElement extends TestElement implements ITestCaseElement {
 	public boolean isIgnored() {
 		return fIgnored;
 	}
+	
+	//@Override
+	public boolean hasAnyIgnoredTestResults() {
+		return isIgnored();
+	}
 
 	public String toString() {
 		return "TestCase: " + getTestClassName() + "." + getTestMethodName() + " : " + super.toString(); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
