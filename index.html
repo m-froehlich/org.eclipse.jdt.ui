@@ -37,10 +37,38 @@
 <li>Shows colored differences between <em>expected</em> and <em>actual</em> values</li>
 <li>Ability to filter <code>@Ignored</code> tests</li>
 <li>Some complex failures from the AssertJ project (fork is provided here) are visualized in the inline <strong>Bug trace</strong> view.</li>
+<li>Ability to automatically show either the failure's stack trace or the bug trace.</li>
 </ul><p><img src="https://raw2.github.com/azachar/org.eclipse.jdt.ui/gh-pages/screenshots/better-junit-testing-2_0.png" alt="Eclipse Test Integration 2.0"></p>
 
 <h2>
-<a name="installation-into-eclipse-kepler-workspace" class="anchor" href="#installation-into-eclipse-kepler-workspace"><span class="octicon octicon-link"></span></a>Installation into Eclipse Kepler Workspace</h2>
+<a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h2>
+
+<p>The fork was made for Eclipse Kepler 4.3.1</p>
+
+<p>Installation consists of 2 parts:</p>
+
+<ol>
+<li>The forked Eclipse JDT bundles</li>
+<li>The forked AssertJ (optional)</li>
+</ol><h3>
+<a name="1a-binary-installation-of-eclipse-bundles" class="anchor" href="#1a-binary-installation-of-eclipse-bundles"><span class="octicon octicon-link"></span></a>1.A Binary installation of Eclipse bundles</h3>
+
+<ol>
+<li>
+<p>Create the following folder </p>
+
+<pre><code>&lt;your-workspace&gt;/.metadata/.plugins/org.eclipse.pde.core/install/plugins/
+</code></pre>
+</li>
+<li>
+<p>Copy binaries from the release <a href="https://github.com/azachar/org.eclipse.jdt.ui/releases">https://github.com/azachar/org.eclipse.jdt.ui/releases</a>
+and store them in the folder mentioned in the step 1. </p>
+
+<p>This allows you to install and test binaries only into a specific workspace. If you want to install it into all workspaces store binaries instead of the mentioned workspace metadata folder into the standard <code>eclipse/dropins/</code> folder.</p>
+</li>
+<li><p>Restart your Eclipse and run your tests.</p></li>
+</ol><h3>
+<a name="1b-compilation-from-the-source-code" class="anchor" href="#1b-compilation-from-the-source-code"><span class="octicon octicon-link"></span></a>1.B Compilation from the source code</h3>
 
 <ol>
 <li>
@@ -72,7 +100,10 @@ org.eclipse.jdt.ui/org.eclipse.jdt.junit4.runtime
 </ol><p>Now you are able to see clearly the failures in your junit view called ****Bug Trace****. It shows a quick overview of failed tests elements.</p>
 
 <h2>
-<a name="colored-failures-for-assertj" class="anchor" href="#colored-failures-for-assertj"><span class="octicon octicon-link"></span></a>Colored failures for AssertJ</h2>
+<a name="assertj-fork" class="anchor" href="#assertj-fork"><span class="octicon octicon-link"></span></a>AssertJ Fork</h2>
+
+<h3>
+<a name="colored-failures" class="anchor" href="#colored-failures"><span class="octicon octicon-link"></span></a>Colored failures</h3>
 
 <p>I have modified the AssertJ project in order to provide a clearer view of failures. The fork allows you to visualize the following asserts:</p>
 
@@ -83,7 +114,7 @@ org.eclipse.jdt.ui/org.eclipse.jdt.junit4.runtime
 <img src="https://raw2.github.com/azachar/org.eclipse.jdt.ui/gh-pages/screenshots/assertj-better-visualization.png" alt="Complex comparison for AssertJ"></p>
 
 <h3>
-<a name="installation-of-the-assertj-fork" class="anchor" href="#installation-of-the-assertj-fork"><span class="octicon octicon-link"></span></a>Installation of the AssertJ fork</h3>
+<a name="2a-installation-of-the-assertj-fork" class="anchor" href="#2a-installation-of-the-assertj-fork"><span class="octicon octicon-link"></span></a>2.A Installation of the AssertJ fork</h3>
 
 <ol>
 <li>
