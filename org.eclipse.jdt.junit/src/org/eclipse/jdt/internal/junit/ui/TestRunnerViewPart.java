@@ -15,6 +15,7 @@
  *     Achim Demelt <a.demelt@exxcellent.de> - [junit] Separate UI from non-UI code - https://bugs.eclipse.org/bugs/show_bug.cgi?id=278844
  *     Andrew Eisenberg <andrew@eisenberg.as> - [JUnit] Rerun failed first does not work with JUnit4 - https://bugs.eclipse.org/bugs/show_bug.cgi?id=140392
  *     Andrej Zachar <andrej@chocolatejar.eu> - [JUnit] Add a filter for ignored tests - https://bugs.eclipse.org/bugs/show_bug.cgi?id=298603
+ *		   - Added the 'Bug Trace' feature (a failure's html based diff, automatic showing a failure widget)
  *******************************************************************************/
 package org.eclipse.jdt.internal.junit.ui;
 
@@ -35,7 +36,11 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
+
 import org.eclipse.jdt.junit.model.ITestElement.Result;
+import org.eclipse.jdt.junit.model.ITestElementContainer;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CLabel;
@@ -86,6 +91,7 @@ import org.eclipse.jface.action.IStatusLineManager;
 import org.eclipse.jface.action.IToolBarManager;
 import org.eclipse.jface.action.MenuManager;
 import org.eclipse.jface.action.Separator;
+import org.eclipse.jface.action.ToolBarManager;
 import org.eclipse.jface.dialogs.Dialog;
 import org.eclipse.jface.dialogs.ErrorDialog;
 import org.eclipse.jface.dialogs.IDialogConstants;
@@ -194,6 +200,7 @@ public class TestRunnerViewPart extends ViewPart {
 	protected volatile String fInfoMessage;
 
 	private FailureTrace fFailureTrace;
+	private BugTrace fBugTrace;
 
 	private TestViewer fTestViewer;
 	/**
@@ -218,6 +225,9 @@ public class TestRunnerViewPart extends ViewPart {
 
 	private Action fFailuresOnlyFilterAction;
 	private Action fIgnoredOnlyFilterAction;
+	private Action fShowFailureTrace;
+	private Action fShowBugTrace;
+	private Action fShowAutomaticFailureWidget;
 	private ScrollLockAction fScrollLockAction;
 	private ToggleOrientationAction[] fToggleOrientationActions;
 	private ShowTestHierarchyAction fShowTestHierarchyAction;
@@ -232,6 +242,7 @@ public class TestRunnerViewPart extends ViewPart {
 	private TestRunSessionListener fTestRunSessionListener;
 
 	final Image fStackViewIcon;
+	final Image fReasonViewIcon;
 	final Image fTestRunOKIcon;
 	final Image fTestRunFailIcon;
 	final Image fTestRunOKDirtyIcon;
@@ -261,7 +272,7 @@ public class TestRunnerViewPart extends ViewPart {
 
 	// Persistence tags.
 	static final String TAG_PAGE= "page"; //$NON-NLS-1$
-	static final String TAG_RATIO= "ratio"; //$NON-NLS-1$
+	static final String TAG_WEIGTHS= "weigths"; //$NON-NLS-1$
 	static final String TAG_TRACEFILTER= "tracefilter"; //$NON-NLS-1$
 	static final String TAG_ORIENTATION= "orientation"; //$NON-NLS-1$
 	static final String TAG_SCROLL= "scroll"; //$NON-NLS-1$
@@ -282,6 +293,21 @@ public class TestRunnerViewPart extends ViewPart {
 	 * @since 3.4
 	 */
 	static final String TAG_SHOW_TIME= "time"; //$NON-NLS-1$
+	
+	/**
+	 * @since 3.8
+	 */
+	static final String TAG_SHOW_BUGTRACE= "bugTrace"; //$NON-NLS-1$
+	
+	/**
+	 * @since 3.8
+	 */
+	static final String TAG_SHOW_STACKTRACE= "stackTrace"; //$NON-NLS-1$
+
+	/**
+	 * @since 3.8
+	 */
+	static final String TAG_SHOW_AUTOMATIC_REASON= "automaticReason"; //$NON-NLS-1$
 
 	/**
 	 * @since 3.5
@@ -306,6 +332,7 @@ public class TestRunnerViewPart extends ViewPart {
 
 //	private CTabFolder fTabFolder;
 	private SashForm fSashForm;
+	private SashForm fSashFormFailureReason;
 
 	private Composite fCounterComposite;
 	private Composite fParent;
@@ -345,6 +372,10 @@ public class TestRunnerViewPart extends ViewPart {
 	};
 
 	protected boolean fPartIsVisible= false;
+
+	private ViewForm fBugTraceViewForm;
+
+	private ViewForm fFailureTraceViewForm;
 
 
 	private class RunnerViewHistory extends ViewHistory<TestRunSession> {
@@ -1055,6 +1086,44 @@ public class TestRunnerViewPart extends ViewPart {
 			setShowExecutionTime(isChecked());
 		}
 	}
+	
+	private class ShowFailureTrace extends Action {
+		
+		public ShowFailureTrace() {
+			super(JUnitMessages.TestRunnerViewPart_show_failure_trace, IAction.AS_CHECK_BOX);
+			setImageDescriptor(JUnitPlugin.getImageDescriptor("eview16/stackframe.gif")); //$NON-NLS-1$
+		}
+		
+		@Override
+		public void run() {
+			setShowFailureTrace(isChecked());
+		}
+	}
+	
+	private class ShowBugTrace extends Action {
+		
+		public ShowBugTrace() {
+			super(JUnitMessages.TestRunnerViewPart_show_bug_trace, IAction.AS_CHECK_BOX);
+			setImageDescriptor(JUnitPlugin.getImageDescriptor("eview16/reason.png")); //$NON-NLS-1$
+		}
+		
+		@Override
+		public void run() {
+			setShowBugTrace(isChecked());
+		}
+	}
+	
+	private class ShowAutomaticFailureWidget extends Action {
+		
+		public ShowAutomaticFailureWidget() {
+			super(JUnitMessages.TestRunnerViewPart_show_automatic_failure_widget, IAction.AS_CHECK_BOX);
+		}
+		
+		@Override
+		public void run() {
+			setShowAutomaticFailureWidget(isChecked());
+		}
+	}
 
 	private class ShowTestHierarchyAction extends Action {
 
@@ -1091,6 +1160,7 @@ public class TestRunnerViewPart extends ViewPart {
 		fImagesToDispose= new ArrayList<Image>();
 
 		fStackViewIcon= createManagedImage("eview16/stackframe.gif");//$NON-NLS-1$
+		fReasonViewIcon= createManagedImage("eview16/reason.png");//$NON-NLS-1$
 		fTestRunOKIcon= createManagedImage("eview16/junitsucc.gif"); //$NON-NLS-1$
 		fTestRunFailIcon= createManagedImage("eview16/juniterr.gif"); //$NON-NLS-1$
 		fTestRunOKDirtyIcon= createManagedImage("eview16/junitsuccq.gif"); //$NON-NLS-1$
@@ -1154,15 +1224,17 @@ public class TestRunnerViewPart extends ViewPart {
 //		int activePage= fTabFolder.getSelectionIndex();
 //		memento.putInteger(TAG_PAGE, activePage);
 		memento.putString(TAG_SCROLL, fScrollLockAction.isChecked() ? "true" : "false"); //$NON-NLS-1$ //$NON-NLS-2$
-		int weigths[]= fSashForm.getWeights();
-		int ratio= (weigths[0] * 1000) / (weigths[0] + weigths[1]);
-		memento.putInteger(TAG_RATIO, ratio);
+		memento.putString(TAG_WEIGTHS, StringUtils.substringBetween(fSashForm.getWeights().toString(), "[", "]"));  //$NON-NLS-1$//$NON-NLS-2$
+		memento.putString(TAG_WEIGTHS+"2", StringUtils.substringBetween(fSashFormFailureReason.getWeights().toString(), "[", "]"));  //$NON-NLS-1$//$NON-NLS-2$ //$NON-NLS-3$
 		memento.putInteger(TAG_ORIENTATION, fOrientation);
 
 		memento.putString(TAG_FAILURES_ONLY, fFailuresOnlyFilterAction.isChecked() ? "true" : "false"); //$NON-NLS-1$ //$NON-NLS-2$
 		memento.putString(TAG_IGNORED_ONLY, fIgnoredOnlyFilterAction.isChecked() ? "true" : "false"); //$NON-NLS-1$ //$NON-NLS-2$
 		memento.putInteger(TAG_LAYOUT, fLayout);
 		memento.putString(TAG_SHOW_TIME, fShowTimeAction.isChecked() ? "true" : "false"); //$NON-NLS-1$ //$NON-NLS-2$
+		memento.putBoolean(TAG_SHOW_BUGTRACE, fShowBugTrace.isChecked());
+		memento.putBoolean(TAG_SHOW_STACKTRACE, fShowFailureTrace.isChecked()); 
+		memento.putBoolean(TAG_SHOW_AUTOMATIC_REASON, fShowAutomaticFailureWidget.isChecked());
 	}
 
 	private void restoreLayoutState(IMemento memento) {
@@ -1174,9 +1246,16 @@ public class TestRunnerViewPart extends ViewPart {
 //				fActiveRunTab= (TestRunTab)fTestRunTabs.get(p);
 //			}
 //		}
-		Integer ratio= memento.getInteger(TAG_RATIO);
-		if (ratio != null)
-			fSashForm.setWeights(new int[] { ratio.intValue(), 1000 - ratio.intValue()} );
+		int[] weights= getWeights(memento, TAG_WEIGTHS);
+		if (weights!=null) {
+			fSashForm.setWeights(weights);
+		}
+		
+		weights= getWeights(memento, TAG_WEIGTHS+"2"); //$NON-NLS-1$
+		if (weights!=null) {
+			fSashFormFailureReason.setWeights(weights);
+		}
+		
 		Integer orientation= memento.getInteger(TAG_ORIENTATION);
 		if (orientation != null)
 			fOrientation= orientation.intValue();
@@ -1206,9 +1285,35 @@ public class TestRunnerViewPart extends ViewPart {
 		boolean showTime= true;
 		if (time != null)
 			showTime= time.equals("true"); //$NON-NLS-1$
-
+		
 		setFilterAndLayout(showFailuresOnly, showIgnoredOnly, layoutValue);
 		setShowExecutionTime(showTime);
+		setShowBugTrace(getBooleanOrDefault(memento, TAG_SHOW_BUGTRACE,true));
+		setShowFailureTrace(getBooleanOrDefault(memento, TAG_SHOW_STACKTRACE, false));
+		setShowAutomaticFailureWidget(getBooleanOrDefault(memento, TAG_SHOW_AUTOMATIC_REASON, true));
+	}
+
+	private int[] getWeights(IMemento memento, final String key) {
+		String weigthsAsString= memento.getString(key);
+		if (weigthsAsString != null) {
+			String[] split= weigthsAsString.split(","); //$NON-NLS-1$
+			if (split != null) {
+				int[] weigths= new int[split.length];
+				for (int i= 0; i < weigths.length; i++) {
+					weigths[i]= NumberUtils.toInt(split[i], 1);
+				}
+				return weigths;
+			}
+		}
+		return null;
+	}
+	
+	private boolean getBooleanOrDefault(IMemento m, String tag, boolean defaultValue) {
+		Boolean result= m.getBoolean(tag);
+		if (result!=null) {
+			return result;
+		}
+		return defaultValue;
 	}
 
 	/**
@@ -1501,6 +1606,7 @@ action enablement
 			resetViewIcon();
 			clearStatus();
 			fFailureTrace.clear();
+			fBugTrace.clear();
 
 			registerInfoMessage(" "); //$NON-NLS-1$
 			stopUpdateJobs();
@@ -1521,6 +1627,7 @@ action enablement
 
 			clearStatus();
 			fFailureTrace.clear();
+			fBugTrace.clear();
 			registerInfoMessage(BasicElementLabels.getJavaElementName(fTestRunSession.getTestRunName()));
 
 			updateRerunFailedFirstAction();
@@ -1723,19 +1830,42 @@ action enablement
 		top.setTopLeft(empty); // makes ViewForm draw the horizontal separator line ...
 		fTestViewer= new TestViewer(top, fClipboard, this);
 		top.setContent(fTestViewer.getTestViewerControl());
-
-		ViewForm bottom= new ViewForm(fSashForm, SWT.NONE);
-
-		CLabel label= new CLabel(bottom, SWT.NONE);
+		
+		fSashFormFailureReason= new SashForm(fSashForm, SWT.VERTICAL);
+		
+		fBugTraceViewForm= new ViewForm(fSashFormFailureReason, SWT.NONE);
+		CLabel pretyFailureLabel= new CLabel(fBugTraceViewForm, SWT.NONE);
+		pretyFailureLabel.setText(JUnitMessages.TestRunnerViewPart_label_reason);
+		pretyFailureLabel.setImage(fReasonViewIcon);
+		fBugTraceViewForm.setTopLeft(pretyFailureLabel);
+		fBugTrace= new BugTrace(fBugTraceViewForm, this);
+		int[] weights;
+		if (fBugTrace.isAvailable()){
+			fBugTraceViewForm.setContent(fBugTrace.getComposite());
+			weights= new int[]{1,1};
+		} else {
+			fBugTraceViewForm.setVisible(false);
+			weights= new int[]{0,1};
+		}
+		ToolBar bugToolBar= new ToolBar(fBugTraceViewForm, SWT.FLAT | SWT.WRAP);
+		fBugTraceViewForm.setTopCenter(bugToolBar);
+		ToolBarManager toolBarManager= new ToolBarManager(bugToolBar);
+		toolBarManager.add(fShowFailureTrace);
+		toolBarManager.update(true);
+		
+		fFailureTraceViewForm= new ViewForm(fSashFormFailureReason, SWT.NONE);
+		CLabel label= new CLabel(fFailureTraceViewForm, SWT.NONE);
 		label.setText(JUnitMessages.TestRunnerViewPart_label_failure);
 		label.setImage(fStackViewIcon);
-		bottom.setTopLeft(label);
-		ToolBar failureToolBar= new ToolBar(bottom, SWT.FLAT | SWT.WRAP);
-		bottom.setTopCenter(failureToolBar);
-		fFailureTrace= new FailureTrace(bottom, fClipboard, this, failureToolBar);
-		bottom.setContent(fFailureTrace.getComposite());
+		fFailureTraceViewForm.setTopLeft(label);
+		ToolBar failureToolBar= new ToolBar(fFailureTraceViewForm, SWT.FLAT | SWT.WRAP);
+		fFailureTraceViewForm.setTopCenter(failureToolBar);
+		fFailureTrace= new FailureTrace(fFailureTraceViewForm, fClipboard, this, failureToolBar);
+		fFailureTraceViewForm.setContent(fFailureTrace.getComposite());
 
-		fSashForm.setWeights(new int[]{50, 50});
+		fSashForm.setWeights(new int[]{1,1});
+		fSashFormFailureReason.setWeights(weights);
+		
 		return fSashForm;
 	}
 
@@ -1948,6 +2078,9 @@ action enablement
 
 		fShowTestHierarchyAction= new ShowTestHierarchyAction();
 		fShowTimeAction= new ShowTimeAction();
+		fShowBugTrace= new ShowBugTrace();
+		fShowFailureTrace= new ShowFailureTrace();
+		fShowAutomaticFailureWidget= new ShowAutomaticFailureWidget();
 
 		toolBar.add(fNextAction);
 		toolBar.add(fPreviousAction);
@@ -1963,6 +2096,10 @@ action enablement
 
 		viewMenu.add(fShowTestHierarchyAction);
 		viewMenu.add(fShowTimeAction);
+		viewMenu.add(new Separator());
+		viewMenu.add(fShowAutomaticFailureWidget);
+		viewMenu.add(fShowBugTrace);
+		viewMenu.add(fShowFailureTrace);
 		viewMenu.add(new Separator());
 
 		MenuManager layoutSubMenu= new MenuManager(JUnitMessages.TestRunnerViewPart_layout_menu);
@@ -2035,10 +2172,82 @@ action enablement
 	private void showFailure(final TestElement test) {
 		postSyncRunnable(new Runnable() {
 			public void run() {
-				if (!isDisposed())
+				if (!isDisposed()) {
+					if (fShowAutomaticFailureWidget.isChecked()) {
+						if (test == null) {
+							fSashFormFailureReason.setVisible(false);
+						} else {
+							final boolean isContainer= test instanceof ITestElementContainer;
+							if (test.getStatus().isErrorOrFailure() && (test.isComparisonFailure() || isContainer)) {
+								setShowBugTrace(true);
+								setShowFailureTrace(false);
+								fSashFormFailureReason.setMaximizedControl(fBugTraceViewForm);
+							} 
+							else if (test.getStatus().isError()) {
+								setShowBugTrace(false);
+								setShowFailureTrace(true);
+								fSashFormFailureReason.setMaximizedControl(fFailureTraceViewForm);
+							}
+							else if (test.getStatus().isOK()) {
+								setShowBugTrace(false);
+								setShowFailureTrace(false);
+							}
+						}
+						updateVisibilityOfFailureSashForm();
+					}
 					fFailureTrace.showFailure(test);
+					fBugTrace.showFailure(test);
+				}
 			}
 		});
+	}
+	
+	private void setShowAutomaticFailureWidget(final boolean enabled) {
+		postSyncRunnable(new Runnable() {
+			public void run() {
+				if (!isDisposed()) {
+					fShowAutomaticFailureWidget.setChecked(enabled);
+					showFailure(fFailureTrace.getFailedTest());
+				}
+			}
+		});
+	}
+
+	private void setShowBugTrace(final boolean enabled) {
+		if (!fBugTrace.isAvailable()){
+			return; //browser is disabled do nothing
+		}
+		postSyncRunnable(new Runnable() {
+			public void run() {
+				if (!isDisposed()) {
+					fBugTraceViewForm.setVisible(enabled);
+					fShowBugTrace.setChecked(enabled);
+					fSashFormFailureReason.setMaximizedControl(null);
+					updateVisibilityOfFailureSashForm();
+				}
+
+			}
+		});
+	}
+
+	private void setShowFailureTrace(final boolean enabled) {
+		postSyncRunnable(new Runnable() {
+			public void run() {
+				if (!isDisposed()) {
+					fFailureTraceViewForm.setVisible(enabled);
+					fShowFailureTrace.setChecked(enabled);
+					fSashFormFailureReason.setMaximizedControl(null);
+					updateVisibilityOfFailureSashForm();
+				}
+			}
+
+		});
+	}
+
+	private void updateVisibilityOfFailureSashForm() {
+		fSashFormFailureReason.setVisible(fShowFailureTrace.isChecked() || fShowBugTrace.isChecked() );
+		fSashFormFailureReason.layout();
+		fSashForm.layout();
 	}
 
 	/**
