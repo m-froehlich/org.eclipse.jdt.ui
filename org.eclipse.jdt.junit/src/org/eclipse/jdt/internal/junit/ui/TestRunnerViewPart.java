@@ -273,9 +273,9 @@ public class TestRunnerViewPart extends ViewPart {
 	 * @since 3.2
 	 */
 	static final String TAG_FAILURES_ONLY= "failuresOnly"; //$NON-NLS-1$
+
 	/**
-	/**
-	 * @since 4.4
+	 * @since 3.8
 	 */
 	static final String TAG_IGNORED_ONLY= "ignoredOnly"; //$NON-NLS-1$
 	/**
