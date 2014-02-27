@@ -9,6 +9,7 @@
  *     IBM Corporation - initial API and implementation
  *     David Saff (saff@mit.edu) - bug 102632: [JUnit] Support for JUnit 4.
  *     Robert Konigsberg <konigsberg@google.com> - [JUnit] Improve discoverability of the ability to run a single method under JUnit Tests - https://bugs.eclipse.org/bugs/show_bug.cgi?id=285637
+ *     Andrej Zachar <andrej@chocolatejar.eu> - Added the 'Bug Trace' feature (a failure's html based diff, automatic showing a failure widget)
  *******************************************************************************/
 package org.eclipse.jdt.internal.junit.ui;
 
@@ -266,6 +267,8 @@ public final class JUnitMessages extends NLS {
 
 	public static String TestRunnerViewPart_jobName;
 	public static String TestRunnerViewPart_label_failure;
+	public static String TestRunnerViewPart_label_reason;
+	public static String TestRunnerViewPart_label_test;
 	public static String TestRunnerViewPart_Launching;
 	public static String TestRunnerViewPart_message_finish;
 	public static String TestRunnerViewPart_message_started;
@@ -292,8 +295,12 @@ public final class JUnitMessages extends NLS {
 	public static String TestRunnerViewPart_testName_startTime;
 	public static String TestRunnerViewPart_max_remembered;
 	public static String TestRunnerViewPart_show_execution_time;
+	public static String TestRunnerViewPart_show_failure_trace;
+	public static String TestRunnerViewPart_show_bug_trace;
+	public static String TestRunnerViewPart_show_automatic_failure_widget;
 
 	public static String TestRunnerViewPart_show_failures_only;
+	public static String TestRunnerViewPart_show_ignored_only;
 	public static String TestRunnerViewPart_hierarchical_layout;
 
 	public static String TestSessionLabelProvider_testName_elapsedTimeInSeconds;

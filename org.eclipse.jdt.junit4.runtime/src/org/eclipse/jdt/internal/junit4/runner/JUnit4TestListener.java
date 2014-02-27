@@ -8,6 +8,7 @@
  * Contributors:
  *   David Saff (saff@mit.edu) - initial API and implementation
  *             (bug 102632: [JUnit] Support for JUnit 4.)
+ *   Andrej Zachar <andrej@chocolatejar.eu> - Support for showing comparison based on an assertion exception message.
  *******************************************************************************/
 package org.eclipse.jdt.internal.junit4.runner;
 
@@ -26,10 +27,21 @@ import org.eclipse.jdt.internal.junit.runner.TestReferenceFailure;
 
 public class JUnit4TestListener extends RunListener {
 
+	/**
+	 * Delimiter for optional comparison message of failed test. This message is used to provide more useful information about the failure
+	 * The same apply for {@link #END_DELIMITER}  {@link #ACTUAL_DELIMITER}
+	 */
+	private static final String EXPECTED_DELIMITER = "\n__EX__"; //$NON-NLS-1$
+
+	private static final String ACTUAL_DELIMITER = "__AC__"; //$NON-NLS-1$
+
+	private static final String END_DELIMITER = "__EN__"; //$NON-NLS-1$
+
 	private static class IgnoredTestIdentifier extends JUnit4Identifier {
 		public IgnoredTestIdentifier(Description description) {
 			super(description);
 		}
+
 		@Override
 		public String getName() {
 			String name= super.getName();
@@ -43,6 +55,7 @@ public class JUnit4TestListener extends RunListener {
 		public AssumptionFailedTestIdentifier(Description description) {
 			super(description);
 		}
+
 		@Override
 		public String getName() {
 			String name= super.getName();
@@ -78,23 +91,63 @@ public class JUnit4TestListener extends RunListener {
 		ITestIdentifier identifier= getIdentifier(failure.getDescription(), false, assumptionFailed);
 		TestReferenceFailure testReferenceFailure;
 		try {
+			String trace= failure.getTrace();
 			Throwable exception= failure.getException();
 			String status= (assumptionFailed || exception instanceof AssertionError) ? MessageIds.TEST_FAILED : MessageIds.TEST_ERROR;
 			FailedComparison comparison= null;
 			if (exception instanceof junit.framework.ComparisonFailure) {
-				junit.framework.ComparisonFailure comparisonFailure= (junit.framework.ComparisonFailure) exception;
+				junit.framework.ComparisonFailure comparisonFailure= (junit.framework.ComparisonFailure)exception;
 				comparison= new FailedComparison(comparisonFailure.getExpected(), comparisonFailure.getActual());
 			} else if (exception instanceof org.junit.ComparisonFailure) {
-				org.junit.ComparisonFailure comparisonFailure= (org.junit.ComparisonFailure) exception;
+				org.junit.ComparisonFailure comparisonFailure= (org.junit.ComparisonFailure)exception;
 				comparison= new FailedComparison(comparisonFailure.getExpected(), comparisonFailure.getActual());
+			} else {
+				comparison= getFailedComparisonFromExceptionMessage(exception.getMessage());
+				if (comparison != null) {
+					trace= removeOptionalMessageFromStackTrace(trace);
+				}
 			}
-			testReferenceFailure= new TestReferenceFailure(identifier, status, failure.getTrace(), comparison);
+
+			testReferenceFailure= new TestReferenceFailure(identifier, status, trace, comparison);
 		} catch (RuntimeException e) {
 			StringWriter stringWriter= new StringWriter();
 			e.printStackTrace(new PrintWriter(stringWriter));
 			testReferenceFailure= new TestReferenceFailure(identifier, MessageIds.TEST_FAILED, stringWriter.getBuffer().toString(), null);
 		}
 		fNotified.notifyTestFailed(testReferenceFailure);
+	}
+	
+	/**
+	 * Remove the optional comparison message from the stack trace.
+	 * @param stacktrace any stacktrace
+	 * @return not null
+	 */
+	private String removeOptionalMessageFromStackTrace(String stacktrace) {
+		String before= stacktrace.substring(0, stacktrace.indexOf(EXPECTED_DELIMITER));
+		String after= stacktrace.substring(stacktrace.indexOf(END_DELIMITER) + END_DELIMITER.length());
+		return  before + after;
+	}
+
+	/**
+	 * Extract the optional comparison message from the exception's message.
+	 * 
+	 * @param exceptionMsg a message from exception
+	 * @return null or no-null Object if success parsing optional comparison message
+	 */
+	private FailedComparison getFailedComparisonFromExceptionMessage(String exceptionMsg) {
+		boolean hasOptionalAttachamentWithComparism= exceptionMsg != null && exceptionMsg.contains(EXPECTED_DELIMITER) && exceptionMsg.contains(ACTUAL_DELIMITER);
+
+		if (hasOptionalAttachamentWithComparism) {
+
+			int beginIndex= exceptionMsg.lastIndexOf(EXPECTED_DELIMITER) + EXPECTED_DELIMITER.length();
+			int endIndex= exceptionMsg.indexOf(END_DELIMITER);
+
+			String attachement= exceptionMsg.substring(beginIndex, endIndex);
+
+			String[] expectedAndActual= attachement.split(ACTUAL_DELIMITER);
+			return new FailedComparison(expectedAndActual[0], expectedAndActual[1]);
+		}
+		return null;
 	}
 
 	@Override
