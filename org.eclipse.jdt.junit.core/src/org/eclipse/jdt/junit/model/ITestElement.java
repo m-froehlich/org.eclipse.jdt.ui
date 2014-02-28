@@ -150,6 +150,14 @@ public interface ITestElement {
 	 */
 	public Result getTestResult(boolean includeChildren);
 
+	
+	/**
+	 * Returns true if the result of the test element and its children (if it has any) has at least one ignored test.
+	 * @since 3.8
+	 * @return returns  <code>true</code> or  <code>false</code>
+	 */
+	public boolean hasAnyIgnoredTestResults();
+	
 	/**
 	 * Returns the failure trace of this test element or <code>null</code> if the test has not resulted in an error or failure.
 	 *

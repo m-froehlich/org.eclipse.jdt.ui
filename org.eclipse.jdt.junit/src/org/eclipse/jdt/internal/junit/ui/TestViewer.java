@@ -96,6 +96,21 @@ public class TestViewer {
 				return ! fTestRunSession.isRunning() && status == Status.RUNNING;  // rerunning
 		}
 	}
+	
+	private final class IgnoredOnlyFilter extends ViewerFilter {
+		@Override
+		public boolean select(Viewer viewer, Object parentElement, Object element) {
+			return select(((TestElement) element));
+		}
+		
+		public boolean select(TestElement testElement) {
+			boolean hasIgnored= testElement.hasAnyIgnoredTestResults();
+			if (hasIgnored)
+				return true;
+			else
+				return ! fTestRunSession.isRunning() && testElement.getStatus() == Status.RUNNING;  // rerunning
+		}
+	}
 
 	private static class ReverseList<E> extends AbstractList<E> {
 		private final List<E> fList;
@@ -125,6 +140,7 @@ public class TestViewer {
 	}
 
 	private final FailuresOnlyFilter fFailuresOnlyFilter= new FailuresOnlyFilter();
+	private final IgnoredOnlyFilter fIgnoredOnlyFilter= new IgnoredOnlyFilter();
 
 	private final TestRunnerViewPart fTestRunnerPart;
 	private final Clipboard fClipboard;
@@ -313,8 +329,14 @@ public class TestViewer {
 			fViewerbook.setRedraw(true);
 		}
 	}
-
-	public synchronized void setShowFailuresOnly(boolean failuresOnly, int layoutMode) {
+	
+	/**
+	 * It make sense to display either failures only or ignored only not both together.
+	 * @param failuresOnly indicates whether to filter failures tests
+	 * @param ignoredOnly indicates whether to filter skipped tests
+	 * @param layoutMode indicates the layout mode
+	 */
+	public synchronized void setShowFailuresOrIgnoredOnly(boolean failuresOnly, boolean ignoredOnly, int layoutMode) {
 		/*
 		 * Management of fTreeViewer and fTableViewer
 		 * ******************************************
@@ -342,22 +364,32 @@ public class TestViewer {
 				fLayoutMode= layoutMode;
 				fViewerbook.showPage(getActiveViewer().getControl());
 			}
-
 			//avoid realizing all TableItems, especially in flat mode!
 			StructuredViewer viewer= getActiveViewer();
-			if (failuresOnly) {
-				if (! getActiveViewerHasFilter()) {
-					setActiveViewerNeedsRefresh(true);
+			if (failuresOnly || ignoredOnly) {
+				
+				if (getActiveViewerHasFilter()) {
+					//clear both filters (only one of them is used we remove both just for simplicity)
+					viewer.removeFilter(fFailuresOnlyFilter);
+					viewer.removeFilter(fIgnoredOnlyFilter);
+				} else {
 					setActiveViewerHasFilter(true);
 					viewer.setInput(null);
-					viewer.addFilter(fFailuresOnlyFilter);
 				}
+				//set either ignored either skipped tests filter
+				ViewerFilter filter= fFailuresOnlyFilter;
+				if (ignoredOnly==true) {
+					filter= fIgnoredOnlyFilter;
+				}
+				viewer.addFilter(filter);
+				setActiveViewerNeedsRefresh(true);
 
 			} else {
 				if (getActiveViewerHasFilter()) {
 					setActiveViewerNeedsRefresh(true);
 					setActiveViewerHasFilter(false);
 					viewer.setInput(null);
+					viewer.removeFilter(fIgnoredOnlyFilter);
 					viewer.removeFilter(fFailuresOnlyFilter);
 				}
 			}
@@ -680,6 +712,5 @@ public class TestViewer {
 	public void expandFirstLevel() {
 		fTreeViewer.expandToLevel(2);
 	}
-
 }
 
