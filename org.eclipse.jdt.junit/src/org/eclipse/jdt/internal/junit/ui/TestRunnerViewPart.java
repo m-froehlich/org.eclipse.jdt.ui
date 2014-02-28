@@ -1706,6 +1706,10 @@ action enablement
 			JavaCore.removeElementChangedListener(fDirtyListener);
 			fDirtyListener= null;
 		}
+		
+		if (fBugTrace!=null) {
+			fBugTrace.dispose();
+		}
 	}
 
 	private void disposeImages() {

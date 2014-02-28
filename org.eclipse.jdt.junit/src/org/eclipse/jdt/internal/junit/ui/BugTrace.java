@@ -36,15 +36,31 @@ import org.eclipse.jdt.internal.junit.util.DiffMatchPatch;
 import org.eclipse.jdt.internal.junit.util.DiffMatchPatch.Diff;
 
 /**
- * A pane that shows a stack trace of a failed test.
+ * Shows pretty formatted failed tests.
  */
 public class BugTrace {
 	final static String NULL= "null"; //$NON-NLS-1$
+
 	final static String EMPTY_STRING= "\"\""; //$NON-NLS-1$
-	
+
 	private Browser fFormattedMessage;
 
 	private final TestRunnerViewPart fTestRunnerPart;
+
+	static final String HTML_HEAD_CSS_BODY= "<!doctype html><html><head><style type=\"text/css\">" + //$NON-NLS-1$
+			"body {font-size:0.7em; font-family: Verdana; } " + //$NON-NLS-1$
+			"table {padding-left:0.5em;padding-bottom:0.5em;border-collapse:separate;border-spacing:0.3em;} " + //$NON-NLS-1$
+			"th {text-align: left; color:black;} " + //$NON-NLS-1$
+			"tr {border:1px solid gray;} " + //$NON-NLS-1$
+			"td {vertical-align:top;} " + //$NON-NLS-1$
+			".e, .a {color:gray;} " + //$NON-NLS-1$
+			".a a {color:gray; text-decoration: none;} " + //$NON-NLS-1$
+			"del {color:red;} " + //$NON-NLS-1$
+			"ins {color:black; font-weight:bold;} " + //$NON-NLS-1$
+			".err {color:#CC0033;} " + //$NON-NLS-1$
+			".m {color: #0099FF;} " + //$NON-NLS-1$
+			"tr:nth-child(2n+3) {background-color:#FFFFDD;} " + //$NON-NLS-1$
+			"</style></head><body>"; //$NON-NLS-1$
 
 	public BugTrace(Composite parent, final TestRunnerViewPart testRunnerPart) {
 		this.fTestRunnerPart= testRunnerPart;
@@ -54,6 +70,9 @@ public class BugTrace {
 			fFormattedMessage.addLocationListener(new LocationAdapter() {
 				@Override
 				public void changing(LocationEvent event) {
+					if (fFormattedMessage.isDisposed())
+						return;
+
 					if (event.location.contains("openTest#")) { //$NON-NLS-1$
 						String testHash= StringUtils.substringBetween(event.location, "openTest#", "?"); //$NON-NLS-1$//$NON-NLS-2$
 						openTest(testHash);
@@ -112,25 +131,12 @@ public class BugTrace {
 	public void showFailure(TestElement test) {
 		StringBuilder b= new StringBuilder();
 		if (test != null && test.getStatus().isErrorOrFailure()) {
-			b.append("<!doctype html><html><head><style type=\"text/css\">" + //$NON-NLS-1$
-					"body {font-size:0.7em; font-family: Verdana; } " + //$NON-NLS-1$
-					"table {padding-left:0.5em;padding-bottom:0.5em;border-collapse:separate;border-spacing:0.3em;} " + //$NON-NLS-1$
-					"th {text-align: left; color:black;} " + //$NON-NLS-1$
-					"tr {border:1px solid gray;} " + //$NON-NLS-1$
-					"td {vertical-align:top;} " + //$NON-NLS-1$
-					".e, .a {color:gray;} " + //$NON-NLS-1$
-					".a a {color:gray; text-decoration: none;} " + //$NON-NLS-1$
-					"del {color:red;} " + //$NON-NLS-1$
-					"ins {color:black; font-weight:bold;} " + //$NON-NLS-1$
-					".err {color:#CC0033;} " + //$NON-NLS-1$
-					".m {color: #0099FF;} " + //$NON-NLS-1$
-					"tr:nth-child(2n+3) {background-color:#FFFFDD;} " + //$NON-NLS-1$
-					"</style></head><body>"); //$NON-NLS-1$
+			b.append(HTML_HEAD_CSS_BODY);
 			b.append("<table>"); //$NON-NLS-1$
 
 			b.append(generateHeader(test));
-
 			b.append(getRows(test, isContainer(test)));
+
 			b.append("</table></body></html>"); //$NON-NLS-1$
 		}
 		fFormattedMessage.setText(b.toString());
@@ -172,10 +178,10 @@ public class BugTrace {
 	}
 
 	/**
-	 * Format failed test to one HTML row
+	 * Format a failed test to one HTML row
 	 * 
 	 * @param test instance of ITestCaseElement
-	 * @param includeMethodName specify whether to
+	 * @param includeMethodName specify whether to include a last row with the method name
 	 * @return HTML text
 	 */
 	private String getOneRow(ITestCaseElement test, boolean includeMethodName) {
@@ -209,7 +215,7 @@ public class BugTrace {
 		StringBuilder b= new StringBuilder();
 		b.append("<td></td><td class='err'>"); //$NON-NLS-1$
 		if (test.getFailureTrace() != null && test.getFailureTrace().getTrace() != null) {
-			b.append(StringUtils.substringBetween(test.getFailureTrace().getTrace(),":", "at")); //$NON-NLS-1$
+			b.append(StringUtils.substringBetween(test.getFailureTrace().getTrace(), ":", "at")); //$NON-NLS-1$ //$NON-NLS-2$
 		} else {
 			b.append(test);
 		}
@@ -236,7 +242,7 @@ public class BugTrace {
 		}
 		FailureTrace trace= test.getFailureTrace();
 		StringBuilder b= new StringBuilder();
-		
+
 		b.append("<td><span class='e'>"); //$NON-NLS-1$
 		b.append(StringUtils.replace(trace.getExpected(), "\n", "<br/>")); //$NON-NLS-1$//$NON-NLS-2$
 		b.append("</span></td>"); //$NON-NLS-1$
@@ -250,17 +256,18 @@ public class BugTrace {
 		b.append("</span></td>"); //$NON-NLS-1$
 		return b.toString();
 	}
-	
+
 
 	/**
-	 * Initial implementation of a pretty diff algorithm 
+	 * Initial implementation of a pretty diff algorithm
+	 * 
 	 * @param trace that contains actual and expected value
 	 * @return HTML enable text that contains ins and del tags
 	 */
 	private String createPrettyHTMLDiff(FailureTrace trace) {
-		DiffMatchPatch diffMaker = new DiffMatchPatch(); //based on https://code.google.com/p/google-diff-match-patch/wiki/API
+		DiffMatchPatch diffMaker= new DiffMatchPatch(); //based on https://code.google.com/p/google-diff-match-patch/wiki/API
 		if (NULL.equals(trace.getActual()) || NULL.equals(trace.getExpected()) || EMPTY_STRING.equals(trace.getActual())) {
-			return "<ins class='err'>"+StringUtils.replace(trace.getActual(), "\n", "<br/>")+"</ins>";  //$NON-NLS-1$//$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$
+			return "<ins class='err'>" + StringUtils.replace(trace.getActual(), "\n", "<br/>") + "</ins>"; //$NON-NLS-1$//$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$
 		}
 		LinkedList<Diff> differences= diffMaker.diff_main(trace.getExpected(), trace.getActual(), false);
 		return diffMaker.diff_prettyHtml(differences);
@@ -275,6 +282,11 @@ public class BugTrace {
 
 	public Control getComposite() {
 		return fFormattedMessage;
+	}
+
+	public void dispose() {
+		if (fFormattedMessage != null)
+			fFormattedMessage.dispose();
 	}
 
 }
