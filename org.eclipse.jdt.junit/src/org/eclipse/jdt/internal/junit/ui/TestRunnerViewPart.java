@@ -1712,6 +1712,9 @@ action enablement
 		if (fFailureTrace != null) {
 			fFailureTrace.dispose();
 		}
+		if (fBugTrace!=null) {
+			fBugTrace.dispose();
+		}
 	}
 
 	private void disposeImages() {
