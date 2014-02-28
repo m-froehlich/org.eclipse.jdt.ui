@@ -50,7 +50,7 @@
 <h2>
 <a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h2>
 
-<p>The fork was made for Eclipse Kepler 4.3.1</p>
+<p>The fork was developed with Eclipse Kepler 4.3.1 although there are branches for other releases too.</p>
 
 <p>The installation consists of 2 parts:</p>
 
@@ -79,14 +79,23 @@ and store them in the folder mentioned in the step 1. </p>
 
 <ol>
 <li>
-<p>Clone the source code of the forked Eclipse Kepler 4.3.1 from </p>
+<p>Clone the source code of the forked Eclipse Kepler 4.3.2 from </p>
 
-<pre><code>git clone -b master https://github.com/azachar/org.eclipse.jdt.ui
+<pre><code>git clone -b R4_3_2-bug-trace https://github.com/azachar/org.eclipse.jdt.ui
 </code></pre>
 </li>
-<li>
-<p>Ensure that you are running Eclipse PDE Kepler SR-1.</p>
+</ol><p><em>If you are using a different Eclipse installation, choose another branch:</em></p>
 
+<ul>
+<li>
+<code>master</code> for the latest Eclipse Luna dev release</li>
+<li>
+<code>R4_3-bug-trace</code> for Eclipse Kepler 4.3</li>
+<li>
+<code>R4_3_1-bug-trace</code> for Eclipse Kepler 4.3.1</li>
+<li><p><code>R4_3_2-bug-trace</code> for Eclipse Kepler 4.3.2</p></li>
+</ul><ol>
+<li>
 <p>Import the following projects into your workspace </p>
 
 <pre><code>org.eclipse.jdt.ui/org.eclipse.jdt.junit
@@ -96,7 +105,7 @@ org.eclipse.jdt.ui/org.eclipse.jdt.junit.core
 org.eclipse.jdt.ui/org.eclipse.jdt.junit4.runtime
 </code></pre>
 
-<p>Install these 3 plugins into your Eclipse Kepler by doing the following:</p>
+<p>Install these 3 plugins into your Eclipse by doing the following:</p>
 
 <p>a) Select the mentioned projects above and from the context menu choose <strong>Export -&gt; Deployable plug-ins and fragments</strong> </p>
 
