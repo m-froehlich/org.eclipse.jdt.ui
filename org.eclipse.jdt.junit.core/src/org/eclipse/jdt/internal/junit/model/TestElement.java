@@ -9,6 +9,7 @@
  *     IBM Corporation - initial API and implementation
  *     Brock Janiczak (brockj@tpg.com.au)
  *         - https://bugs.eclipse.org/bugs/show_bug.cgi?id=102236: [JUnit] display execution time next to each test
+ *     Andrej Zachar <andrej@chocolatejar.eu> - [JUnit] Add a filter for ignored tests - https://bugs.eclipse.org/bugs/show_bug.cgi?id=298603
  *******************************************************************************/
 
 package org.eclipse.jdt.internal.junit.model;
@@ -218,8 +219,10 @@ public abstract class TestElement implements ITestElement {
 		return getStatus().convertToResult();
 	}
 	
+	//@Override
 	public boolean hasAnyIgnoredTestResults() {
-		return getStatus().convertToResult()==Result.UNDEFINED || getStatus().convertToResult()==Result.IGNORED;
+		Result testResult= getTestResult(true);
+		return testResult==Result.UNDEFINED || testResult==Result.IGNORED;
 	}
 
 	/* (non-Javadoc)
