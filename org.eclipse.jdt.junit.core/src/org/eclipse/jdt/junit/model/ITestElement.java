@@ -9,6 +9,7 @@
  *     IBM Corporation - initial API and implementation
  *     Brock Janiczak (brockj@tpg.com.au)
  *         - https://bugs.eclipse.org/bugs/show_bug.cgi?id=102236: [JUnit] display execution time next to each test
+ *     Andrej Zachar <andrej@chocolatejar.eu> - [JUnit] Add a filter for ignored tests - https://bugs.eclipse.org/bugs/show_bug.cgi?id=298603
  *******************************************************************************/
 package org.eclipse.jdt.junit.model;
 
@@ -152,9 +153,10 @@ public interface ITestElement {
 
 	
 	/**
-	 * Returns true if the result of the test element and its children (if it has any) has at least one ignored test.
+	 * Returns true if the result of the test element and its children (if it has any) has at least one test with the result {@link Result#IGNORED} or {@link Result#UNDEFINED},
+	 * e.g. any test method that is <code>@Ignored</code> or has any assumption failure or has not been running.
 	 * @since 3.8
-	 * @return returns  <code>true</code> or  <code>false</code>
+	 * @return returns  <code>true</code> or <code>false</code>
 	 */
 	public boolean hasAnyIgnoredTestResults();
 	

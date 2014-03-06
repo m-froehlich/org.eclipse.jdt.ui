@@ -7,6 +7,7 @@
  *
  * Contributors:
  *     IBM Corporation - initial API and implementation
+ *     Andrej Zachar <andrej@chocolatejar.eu> - [JUnit] Add a filter for ignored tests - https://bugs.eclipse.org/bugs/show_bug.cgi?id=298603
  *******************************************************************************/
 
 package org.eclipse.jdt.internal.junit.model;
@@ -69,11 +70,6 @@ public class TestCaseElement extends TestElement implements ITestCaseElement {
 		return fIgnored;
 	}
 	
-	//@Override
-	public boolean hasAnyIgnoredTestResults() {
-		return isIgnored();
-	}
-
 	public String toString() {
 		return "TestCase: " + getTestClassName() + "." + getTestMethodName() + " : " + super.toString(); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
 	}
