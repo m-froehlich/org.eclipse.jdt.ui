@@ -765,8 +765,14 @@ public final class JavaIndenter {
 					case Symbols.TokenELSE:
 						danglingElse= true;
 						break;
-					case Symbols.TokenCASE:
 					case Symbols.TokenDEFAULT:
+						fScanner.nextToken(offset, lineOffset + line.getLength());
+						int next= fScanner.nextToken(fScanner.getPosition(), JavaHeuristicScanner.UNBOUND);
+						if (next != Symbols.TokenCOLON) {
+							break;
+						}
+						//$FALL-THROUGH$
+					case Symbols.TokenCASE:
 						if (isFirstTokenOnLine)
 							matchCase= true;
 						break;

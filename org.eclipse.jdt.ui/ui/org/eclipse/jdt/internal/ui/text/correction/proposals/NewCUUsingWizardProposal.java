@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2012 IBM Corporation and others.
+ * Copyright (c) 2000, 2013 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -354,7 +354,7 @@ public class NewCUUsingWizardProposal extends ChangeCorrectionProposal {
 		ASTNode parent= node.getParent();
 		switch (parent.getNodeType()) {
 			case ASTNode.METHOD_DECLARATION:
-				if (node.getLocationInParent() == MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY) {
+				if (node.getLocationInParent() == MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY) {
 					return ast.resolveWellKnownType("java.lang.Exception"); //$NON-NLS-1$
 				}
 				break;

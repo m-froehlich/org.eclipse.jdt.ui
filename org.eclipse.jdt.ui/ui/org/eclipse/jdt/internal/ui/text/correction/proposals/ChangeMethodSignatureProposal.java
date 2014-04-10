@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2011 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -30,7 +30,6 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.Javadoc;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
-import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.TagElement;
@@ -46,6 +45,7 @@ import org.eclipse.jdt.internal.corext.codemanipulation.StubUtility;
 import org.eclipse.jdt.internal.corext.dom.ASTNodeFactory;
 import org.eclipse.jdt.internal.corext.dom.ASTNodes;
 import org.eclipse.jdt.internal.corext.dom.Bindings;
+import org.eclipse.jdt.internal.corext.dom.DimensionRewrite;
 import org.eclipse.jdt.internal.corext.dom.LinkedNodeFinder;
 import org.eclipse.jdt.internal.corext.dom.ScopeAnalyzer;
 
@@ -212,7 +212,7 @@ public class ChangeMethodSignatureProposal extends LinkedCorrectionProposal {
 
 				Type newType= imports.addImport(newTypeBinding, ast, context);
 				rewrite.replace(decl.getType(), newType, null);
-				rewrite.set(decl, SingleVariableDeclaration.EXTRA_DIMENSIONS_PROPERTY, new Integer(0), null);
+				DimensionRewrite.removeAllChildren(decl, SingleVariableDeclaration.EXTRA_DIMENSIONS2_PROPERTY, rewrite, null);
 
 				IBinding binding= decl.getName().resolveBinding();
 				if (binding != null) {
@@ -364,9 +364,9 @@ public class ChangeMethodSignatureProposal extends LinkedCorrectionProposal {
 
 		ImportRewrite imports= getImportRewrite();
 		ImportRewriteContext context= new ContextSensitiveImportRewriteContext(methodDecl, imports);
-		ListRewrite listRewrite= rewrite.getListRewrite(methodDecl, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+		ListRewrite listRewrite= rewrite.getListRewrite(methodDecl, MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY);
 
-		List<Name> exceptions= methodDecl.thrownExceptions(); // old exceptions
+		List<Type> exceptions= methodDecl.thrownExceptionTypes(); // old exceptions
 		int k= 0; // index over the old exceptions
 
 		for (int i= 0; i < fExceptionChanges.length; i++) {
@@ -377,7 +377,7 @@ public class ChangeMethodSignatureProposal extends LinkedCorrectionProposal {
 			} else if (curr instanceof InsertDescription) {
 				InsertDescription desc= (InsertDescription) curr;
 				String type= imports.addImport(desc.type, context);
-				ASTNode newNode= ASTNodeFactory.newName(ast, type);
+				ASTNode newNode= imports.addImport(desc.type, ast, context);
 
 				listRewrite.insertAt(newNode, i, null);
 
@@ -397,7 +397,7 @@ public class ChangeMethodSignatureProposal extends LinkedCorrectionProposal {
 				}
 
 			} else if (curr instanceof RemoveDescription) {
-				Name node= exceptions.get(k);
+				Type node= exceptions.get(k);
 
 				listRewrite.remove(node, null);
 				k++;
@@ -409,10 +409,10 @@ public class ChangeMethodSignatureProposal extends LinkedCorrectionProposal {
 			} else if (curr instanceof EditDescription) {
 				EditDescription desc= (EditDescription) curr;
 
-				Name oldNode= exceptions.get(k);
+				Type oldNode= exceptions.get(k);
 
 				String type= imports.addImport(desc.type, context);
-				ASTNode newNode= ASTNodeFactory.newName(ast, type);
+				ASTNode newNode= imports.addImport(desc.type, ast, context);
 
 				listRewrite.replace(oldNode, newNode, null);
 				String key= getExceptionTypeGroupId(i);
@@ -422,14 +422,14 @@ public class ChangeMethodSignatureProposal extends LinkedCorrectionProposal {
 
 				TagElement tagNode= findThrowsTag(methodDecl, oldNode);
 				if (tagNode != null) {
-					ASTNode newRef= ASTNodeFactory.newName(ast, type);
+					ASTNode newRef= ASTNodeFactory.newType(ast, type);
 					rewrite.replace((ASTNode) tagNode.fragments().get(0), newRef, null);
 					addLinkedPosition(rewrite.track(newRef), false, key);
 				}
 
 			} else if (curr instanceof SwapDescription) {
-				Name decl1= exceptions.get(k);
-				Name decl2= exceptions.get(((SwapDescription) curr).index);
+				Type decl1= exceptions.get(k);
+				Type decl2= exceptions.get(((SwapDescription) curr).index);
 
 				rewrite.replace(decl1, rewrite.createCopyTarget(decl2), null);
 				rewrite.replace(decl2, rewrite.createCopyTarget(decl1), null);
@@ -453,20 +453,20 @@ public class ChangeMethodSignatureProposal extends LinkedCorrectionProposal {
 		addLinkedPosition(rewriter.track(textElement), false, linkedName);
 	}
 
-	private TagElement findThrowsTag(MethodDeclaration decl, Name exception) {
+	private TagElement findThrowsTag(MethodDeclaration decl, Type exception) {
 		Javadoc javadoc= decl.getJavadoc();
 		if (javadoc != null) {
-			String name= ASTNodes.getSimpleNameIdentifier(exception);
+			String name= ASTNodes.getTypeName(exception);
 			return JavadocTagsSubProcessor.findThrowsTag(javadoc, name);
 		}
 		return null;
 	}
 
-	private TagElement insertThrowsTag(ListRewrite tagRewriter, List<Name> exceptions, int currentIndex, TagElement newTagElement) {
+	private TagElement insertThrowsTag(ListRewrite tagRewriter, List<Type> exceptions, int currentIndex, TagElement newTagElement) {
 		HashSet<String> previousNames= new HashSet<String>();
 		for (int n = 0; n < currentIndex; n++) {
-			Name curr= exceptions.get(n);
-			previousNames.add(ASTNodes.getSimpleNameIdentifier(curr));
+			Type curr= exceptions.get(n);
+			previousNames.add(ASTNodes.getTypeName(curr));
 		}
 
 		JavadocTagsSubProcessor.insertTag(tagRewriter, newTagElement, previousNames);

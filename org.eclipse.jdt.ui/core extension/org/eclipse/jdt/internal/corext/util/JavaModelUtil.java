@@ -71,7 +71,7 @@ public final class JavaModelUtil {
 	 */
 	public static final String VERSION_LATEST;
 	static {
-		VERSION_LATEST= JavaCore.VERSION_1_7; // make sure it is not inlined
+		VERSION_LATEST= JavaCore.VERSION_1_8; // make sure it is not inlined
 	}
 	
 	/**
@@ -767,6 +767,10 @@ public final class JavaModelUtil {
 		return !isVersionLessThan(compliance, JavaCore.VERSION_1_7);
 	}
 
+	public static boolean is18OrHigher(String compliance) {
+		return !isVersionLessThan(compliance, JavaCore.VERSION_1_8);
+	}
+
 	/**
 	 * Checks if the given project or workspace has source compliance 1.5 or greater.
 	 *
@@ -774,8 +778,7 @@ public final class JavaModelUtil {
 	 * @return <code>true</code> if the given project or workspace has source compliance 1.5 or greater.
 	 */
 	public static boolean is50OrHigher(IJavaProject project) {
-		String source= project != null ? project.getOption(JavaCore.COMPILER_SOURCE, true) : JavaCore.getOption(JavaCore.COMPILER_SOURCE);
-		return is50OrHigher(source);
+		return is50OrHigher(getSourceCompliance(project));
 	}
 
 	/**
@@ -785,8 +788,22 @@ public final class JavaModelUtil {
 	 * @return <code>true</code> if the given project or workspace has source compliance 1.7 or greater.
 	 */
 	public static boolean is17OrHigher(IJavaProject project) {
-		String source= project != null ? project.getOption(JavaCore.COMPILER_SOURCE, true) : JavaCore.getOption(JavaCore.COMPILER_SOURCE);
-		return is17OrHigher(source);
+		return is17OrHigher(getSourceCompliance(project));
+	}
+	
+	/**
+	 * Checks if the given project or workspace has source compliance 1.8 or greater.
+	 * 
+	 * @param project the project to test or <code>null</code> to test the workspace settings
+	 * @return <code>true</code> if the given project or workspace has source compliance 1.8 or
+	 *         greater.
+	 */
+	public static boolean is18OrHigher(IJavaProject project) {
+		return is18OrHigher(getSourceCompliance(project));
+	}
+
+	private static String getSourceCompliance(IJavaProject project) {
+		return project != null ? project.getOption(JavaCore.COMPILER_SOURCE, true) : JavaCore.getOption(JavaCore.COMPILER_SOURCE);
 	}
 	
 	/**
@@ -811,15 +828,15 @@ public final class JavaModelUtil {
 		String compliance= getCompilerCompliance((IVMInstall2) vmInstall, null);
 		if (compliance == null)
 			return true; // assume 1.5
-		return compliance.startsWith(JavaCore.VERSION_1_5)
-				|| compliance.startsWith(JavaCore.VERSION_1_6)
-				|| compliance.startsWith(JavaCore.VERSION_1_7);
+		return is50OrHigher(compliance);
 	}
 
 	public static String getCompilerCompliance(IVMInstall2 vMInstall, String defaultCompliance) {
 		String version= vMInstall.getJavaVersion();
 		if (version == null) {
 			return defaultCompliance;
+		} else if (version.startsWith(JavaCore.VERSION_1_8)) {
+			return JavaCore.VERSION_1_8;
 		} else if (version.startsWith(JavaCore.VERSION_1_7)) {
 			return JavaCore.VERSION_1_7;
 		} else if (version.startsWith(JavaCore.VERSION_1_6)) {
@@ -848,7 +865,9 @@ public final class JavaModelUtil {
 		
 		// fallback:
 		String desc= executionEnvironment.getId();
-		if (desc.indexOf(JavaCore.VERSION_1_7) != -1) {
+		if (desc.indexOf(JavaCore.VERSION_1_8) != -1) {
+			return JavaCore.VERSION_1_8;
+		} else if (desc.indexOf(JavaCore.VERSION_1_7) != -1) {
 			return JavaCore.VERSION_1_7;
 		} else if (desc.indexOf(JavaCore.VERSION_1_6) != -1) {
 			return JavaCore.VERSION_1_6;

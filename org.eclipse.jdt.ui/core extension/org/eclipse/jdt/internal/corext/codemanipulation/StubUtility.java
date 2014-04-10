@@ -607,6 +607,7 @@ public class StubUtility {
 
 	/*
 	 * Don't use this method directly, use CodeGeneration.
+	 * This method should work with all AST levels.
 	 * @see org.eclipse.jdt.ui.CodeGeneration#getMethodComment(ICompilationUnit, String, MethodDeclaration, boolean, String, String[], String)
 	 */
 	public static String getMethodComment(ICompilationUnit cu, String typeName, MethodDeclaration decl, boolean isDeprecated, String targetName, String targetMethodDeclaringTypeName,
@@ -671,11 +672,7 @@ public class StubUtility {
 			SingleVariableDeclaration elem= params.get(i);
 			paramNames[i]= elem.getName().getIdentifier();
 		}
-		List<Name> exceptions= decl.thrownExceptions();
-		String[] exceptionNames= new String[exceptions.size()];
-		for (int i= 0; i < exceptionNames.length; i++) {
-			exceptionNames[i]= ASTNodes.getSimpleNameIdentifier(exceptions.get(i));
-		}
+		String[] exceptionNames= getExceptionNames(decl);
 
 		String returnType= null;
 		if (!decl.isConstructor()) {
@@ -690,6 +687,29 @@ public class StubUtility {
 			}
 		}
 		return textBuffer.get();
+	}
+
+	/**
+	 * @param decl the method declaration
+	 * @return the exception names
+	 * @deprecated to avoid deprecation warnings
+	 */
+	private static String[] getExceptionNames(MethodDeclaration decl) {
+		String[] exceptionNames;
+		if (decl.getAST().apiLevel() >= AST.JLS8) {
+			List<Type> exceptions= decl.thrownExceptionTypes();
+			exceptionNames= new String[exceptions.size()];
+			for (int i= 0; i < exceptionNames.length; i++) {
+				exceptionNames[i]= ASTNodes.getTypeName(exceptions.get(i));
+			}
+		} else {
+			List<Name> exceptions= decl.thrownExceptions();
+			exceptionNames= new String[exceptions.size()];
+			for (int i= 0; i < exceptionNames.length; i++) {
+				exceptionNames[i]= ASTNodes.getSimpleNameIdentifier(exceptions.get(i));
+			}
+		}
+		return exceptionNames;
 	}
 
 	public static boolean shouldGenerateMethodTypeParameterTags(IJavaProject project) {

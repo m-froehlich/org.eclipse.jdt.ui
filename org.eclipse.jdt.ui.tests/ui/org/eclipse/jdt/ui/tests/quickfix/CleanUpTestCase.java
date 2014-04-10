@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2013 IBM Corporation and others.
+ * Copyright (c) 2005, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -41,6 +41,7 @@ import org.eclipse.ltk.core.refactoring.PerformChangeOperation;
 import org.eclipse.ltk.core.refactoring.RefactoringCore;
 import org.eclipse.ltk.core.refactoring.RefactoringStatus;
 
+import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
@@ -80,6 +81,7 @@ public class CleanUpTestCase extends QuickFixTest {
 
 		suite.addTest(CleanUpStressTest.suite());
 		suite.addTest(CleanUpTest.suite());
+		suite.addTest(CleanUpTest18.suite());
 		suite.addTest(CleanUpAnnotationTest.suite());
 		suite.addTest(SaveParticipantTest.suite());
 		suite.addTest(CleanUpActionTest.suite());
@@ -116,7 +118,7 @@ public class CleanUpTestCase extends QuickFixTest {
 		corePrefs.setValue(JavaCore.CODEASSIST_FIELD_SUFFIXES, "");
 		corePrefs.setValue(JavaCore.CODEASSIST_STATIC_FIELD_SUFFIXES, "");
 
-		fJProject1= ProjectTestSetup.getProject();
+		fJProject1= getProject();
 
 		fSourceFolder= JavaProjectHelper.addSourceContainer(fJProject1, "src");
 
@@ -129,11 +131,19 @@ public class CleanUpTestCase extends QuickFixTest {
 	}
 
 	protected void tearDown() throws Exception {
-		JavaProjectHelper.clear(fJProject1, ProjectTestSetup.getDefaultClasspath());
+		JavaProjectHelper.clear(fJProject1, getDefaultClasspath());
 		disableAll();
 		fJProject1= null;
 		fSourceFolder= null;
 		fProfile= null;
+	}
+
+	protected IJavaProject getProject() {
+		return ProjectTestSetup.getProject();
+	}
+
+	protected IClasspathEntry[] getDefaultClasspath() throws CoreException {
+		return ProjectTestSetup.getDefaultClasspath();
 	}
 
 	private void disableAll() throws CoreException {
@@ -144,6 +154,11 @@ public class CleanUpTestCase extends QuickFixTest {
 			String key= (String)iterator.next();
 			settings.put(key, CleanUpOptions.FALSE);
 		}
+		commitProfile();
+	}
+
+	protected void disable(String key) throws CoreException {
+		fProfile.getSettings().put(key, CleanUpOptions.FALSE);
 		commitProfile();
 	}
 

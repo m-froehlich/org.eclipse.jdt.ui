@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2012 IBM Corporation and others.
+ * Copyright (c) 2000, 2013 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -94,6 +94,8 @@ public class MultiFixMessages extends NLS {
 
 	public static String CodeFormatCleanUp_description;
 	public static String CodeFormatFix_description;
+	public static String LambdaExpressionsCleanUp_use_lambda_where_possible;
+	public static String LambdaExpressionsCleanUp_use_anonymous;
 
 	public static String NullAnnotationsCleanUp_add_nullable_annotation;
 	public static String NullAnnotationsCleanUp_add_nonnull_annotation;

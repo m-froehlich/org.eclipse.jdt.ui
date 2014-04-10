@@ -10,6 +10,7 @@
  *     Brock Janiczak (brockj@tpg.com.au)
  *         - https://bugs.eclipse.org/bugs/show_bug.cgi?id=102236: [JUnit] display execution time next to each test
  *     Andrej Zachar <andrej@chocolatejar.eu> - [JUnit] Add a filter for ignored tests - https://bugs.eclipse.org/bugs/show_bug.cgi?id=298603
+ *     Xavier Coulon <xcoulon@redhat.com> - https://bugs.eclipse.org/bugs/show_bug.cgi?id=102512 - [JUnit] test method name cut off before (
  *******************************************************************************/
 
 package org.eclipse.jdt.internal.junit.ui;
@@ -300,9 +301,17 @@ public class TestViewer {
 
 		OpenTestAction action;
 		if (testElement instanceof TestSuiteElement) {
-			action= new OpenTestAction(fTestRunnerPart, testElement.getTestName());
-		} else if (testElement instanceof TestCaseElement){
-			TestCaseElement testCase= (TestCaseElement) testElement;
+			String testName= testElement.getTestName();
+			ITestElement[] children= ((TestSuiteElement) testElement).getChildren();
+			if (testName.startsWith("[") && testName.endsWith("]") //$NON-NLS-1$ //$NON-NLS-2$
+					&& children.length > 0 && children[0] instanceof TestCaseElement) {
+				// a group of parameterized tests
+				action= new OpenTestAction(fTestRunnerPart, (TestCaseElement) children[0]);
+			} else {
+				action= new OpenTestAction(fTestRunnerPart, testName);
+			}
+		} else if (testElement instanceof TestCaseElement) {
+			TestCaseElement testCase= (TestCaseElement)testElement;
 			action= new OpenTestAction(fTestRunnerPart, testCase);
 		} else {
 			throw new IllegalStateException(String.valueOf(testElement));

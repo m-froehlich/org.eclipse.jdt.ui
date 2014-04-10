@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -66,6 +66,7 @@ public class QuickFixProcessor implements IQuickFixProcessor {
 			case IProblem.PackageIsNotExpectedPackage:
 			case IProblem.UndefinedType:
 			case IProblem.TypeMismatch:
+			case IProblem.ReturnTypeMismatch:
 			case IProblem.UnhandledException:
 			case IProblem.UnhandledExceptionOnAutoClose:
 			case IProblem.UnreachableCatch:
@@ -78,6 +79,7 @@ public class QuickFixProcessor implements IQuickFixProcessor {
 			case IProblem.NonExternalizedStringLiteral:
 			case IProblem.NonStaticAccessToStaticField:
 			case IProblem.NonStaticAccessToStaticMethod:
+			case IProblem.NonStaticOrAlienTypeReceiver:
 			case IProblem.StaticMethodRequested:
 			case IProblem.NonStaticFieldFromStaticInvocation:
 			case IProblem.InstanceMethodDuringConstructorInvocation:
@@ -263,6 +265,14 @@ public class QuickFixProcessor implements IQuickFixProcessor {
 			case IProblem.ConflictingNullAnnotations:
 			case IProblem.ConflictingInheritedNullAnnotations:
 			case IProblem.ParsingErrorInsertToComplete:
+			case IProblem.ExplicitThisParameterNotBelow18:
+			case IProblem.DefaultMethodNotBelow18:
+			case IProblem.StaticInterfaceMethodNotBelow18:
+			case IProblem.LambdaExpressionNotBelow18:
+			case IProblem.MethodReferenceNotBelow18:
+			case IProblem.ConstructorReferenceNotBelow18:
+			case IProblem.IntersectionCastNotBelow18:
+			case IProblem.InvalidUsageOfTypeAnnotations:
 				return true;
 			default:
 				return SuppressWarningsSubProcessor.hasSuppressWarningsProposal(cu.getJavaProject(), problemId);
@@ -361,6 +371,7 @@ public class QuickFixProcessor implements IQuickFixProcessor {
 				UnresolvedElementsSubProcessor.getTypeProposals(context, problem, proposals);
 				break;
 			case IProblem.TypeMismatch:
+			case IProblem.ReturnTypeMismatch:
 				TypeMismatchSubProcessor.addTypeMismatchProposals(context, problem, proposals);
 				break;
 			case IProblem.IncompatibleTypesInForeach:
@@ -405,6 +416,7 @@ public class QuickFixProcessor implements IQuickFixProcessor {
 				break;
 			case IProblem.NonStaticAccessToStaticField:
 			case IProblem.NonStaticAccessToStaticMethod:
+			case IProblem.NonStaticOrAlienTypeReceiver:
 			case IProblem.IndirectAccessToStaticField:
 			case IProblem.IndirectAccessToStaticMethod:
 				LocalCorrectionsSubProcessor.addCorrectAccessToStaticProposals(context, problem, proposals);
@@ -614,6 +626,16 @@ public class QuickFixProcessor implements IQuickFixProcessor {
 			case IProblem.UnderscoresInLiteralsNotBelow17:
 			case IProblem.SwitchOnStringsNotBelow17:
 				ReorgCorrectionsSubProcessor.getNeedHigherComplianceProposals(context, problem, proposals, JavaCore.VERSION_1_7);
+				break;
+			case IProblem.ExplicitThisParameterNotBelow18:
+			case IProblem.DefaultMethodNotBelow18:
+			case IProblem.StaticInterfaceMethodNotBelow18:
+			case IProblem.LambdaExpressionNotBelow18:
+			case IProblem.MethodReferenceNotBelow18:
+			case IProblem.ConstructorReferenceNotBelow18:
+			case IProblem.IntersectionCastNotBelow18:
+			case IProblem.InvalidUsageOfTypeAnnotations:
+				ReorgCorrectionsSubProcessor.getNeedHigherComplianceProposals(context, problem, proposals, JavaCore.VERSION_1_8);
 				break;
 			case IProblem.NonGenericType:
 				TypeArgumentMismatchSubProcessor.removeMismatchedArguments(context, problem, proposals);

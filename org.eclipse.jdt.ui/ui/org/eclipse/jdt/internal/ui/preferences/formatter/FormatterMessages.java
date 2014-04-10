@@ -1,10 +1,10 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2011 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
- * 
+ *
  * Contributors:
  *     IBM Corporation - initial API and implementation
  *     istvan@benedek-home.de - 103706 [formatter] indent empty lines
@@ -162,6 +162,8 @@ final class FormatterMessages extends NLS {
 	public static String WhiteSpaceOptions_after;
 	public static String WhiteSpaceOptions_operator;
 	public static String WhiteSpaceOptions_assignment_operator;
+	public static String WhiteSpaceOptions_lambda_after_arrow_operator;
+	public static String WhiteSpaceOptions_lambda_before_arrow_operator;
 	public static String WhiteSpaceOptions_binary_operator;
 	public static String WhiteSpaceOptions_unary_operator;
 	public static String WhiteSpaceOptions_prefix_operator;
@@ -205,6 +207,7 @@ final class FormatterMessages extends NLS {
 	public static String WhiteSpaceOptions_array_element_access;
 	public static String WhiteSpaceOptions_array_alloc;
 	public static String WhiteSpaceOptions_array_init;
+	public static String WhiteSpaceOptions_arrow_operator;
 	public static String WhiteSpaceOptions_arguments;
 	public static String WhiteSpaceOptions_initialization;
 	public static String WhiteSpaceOptions_incrementation;
@@ -220,6 +223,7 @@ final class FormatterMessages extends NLS {
 	public static String WhiteSpaceOptions_conditional;
 	public static String WhiteSpaceOptions_wildcard;
 	public static String WhiteSpaceOptions_label;
+	public static String WhiteSpaceOptions_lambda;
 	public static String WhiteSpaceOptions_comma;
 	public static String WhiteSpaceOptions_semicolon;
 	public static String WhiteSpaceOptions_question_mark;
@@ -355,6 +359,7 @@ final class FormatterMessages extends NLS {
 	public static String BracesTabPage_option_enum_declaration;
 	public static String BracesTabPage_option_enumconst_declaration;
 	public static String BracesTabPage_option_annotation_type_declaration;
+	public static String BracesTabPage_option_lambda_body;
 
 	public static String CodingStyleConfigurationBlock_preview_title;
 
@@ -452,6 +457,7 @@ final class FormatterMessages extends NLS {
 	public static String NewLinesTabPage_annotations_group_paramters;
 	public static String NewLinesTabPage_annotations_group_packages;
 	public static String NewLinesTabPage_annotations_group_types;
+	public static String NewLinesTabPage_annotations_group_type_annotations;
 	public static String NewLinesTabPage_annotations_group_fields;
 	public static String NewLinesTabPage_annotations_group_methods;
 	public static String NewLinesTabPage_annotations_group_title;

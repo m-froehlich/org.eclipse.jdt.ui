@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2012 IBM Corporation and others.
+ * Copyright (c) 2000, 2013 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -310,13 +310,17 @@ public class Checks {
 	 */
 	public static RefactoringStatus checkMethodInType(ITypeBinding type, String methodName, ITypeBinding[] parameters) {
 		RefactoringStatus result= new RefactoringStatus();
-		if (methodName.equals(type.getName()))
-			result.addWarning(RefactoringCoreMessages.Checks_methodName_constructor);
 		IMethodBinding method= org.eclipse.jdt.internal.corext.dom.Bindings.findMethodInType(type, methodName, parameters);
-		if (method != null)
-			result.addError(Messages.format(RefactoringCoreMessages.Checks_methodName_exists,
-				new Object[] {BasicElementLabels.getJavaElementName(methodName), BasicElementLabels.getJavaElementName(type.getName())}),
-				JavaStatusContext.create(method));
+		if (method != null) {
+			if (method.isConstructor()) {
+				result.addWarning(Messages.format(RefactoringCoreMessages.Checks_methodName_constructor,
+						new Object[] { BasicElementLabels.getJavaElementName(type.getName()) }));
+			} else {
+				result.addError(Messages.format(RefactoringCoreMessages.Checks_methodName_exists,
+						new Object[] { BasicElementLabels.getJavaElementName(methodName), BasicElementLabels.getJavaElementName(type.getName()) }),
+						JavaStatusContext.create(method));
+			}
+		}
 		return result;
 	}
 
@@ -354,9 +358,14 @@ public class Checks {
 					new Object[] {BasicElementLabels.getJavaElementName(methodName), BasicElementLabels.getJavaElementName(dc.getName())}),
 					JavaStatusContext.create(method));
 			} else {
-				result.addError(Messages.format(RefactoringCoreMessages.Checks_methodName_overrides,
-					new Object[] {BasicElementLabels.getJavaElementName(methodName), BasicElementLabels.getJavaElementName(dc.getName())}),
-					JavaStatusContext.create(method));
+				if (method.isConstructor()) {
+					result.addWarning(Messages.format(RefactoringCoreMessages.Checks_methodName_constructor,
+							new Object[] { BasicElementLabels.getJavaElementName(dc.getName()) }));
+				} else {
+					result.addError(Messages.format(RefactoringCoreMessages.Checks_methodName_overrides,
+							new Object[] { BasicElementLabels.getJavaElementName(methodName), BasicElementLabels.getJavaElementName(dc.getName()) }),
+							JavaStatusContext.create(method));
+				}
 			}
 		}
 		return result;

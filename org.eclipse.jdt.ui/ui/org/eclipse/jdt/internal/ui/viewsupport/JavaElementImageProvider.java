@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2010 IBM Corporation and others.
+ * Copyright (c) 2000, 2013 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -39,6 +39,7 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 
 import org.eclipse.jdt.internal.corext.util.JavaModelUtil;
+import org.eclipse.jdt.internal.corext.util.JdtFlags;
 
 import org.eclipse.jdt.ui.JavaElementImageDescriptor;
 
@@ -361,7 +362,7 @@ public class JavaElementImageProvider {
 					IMember member= (IMember)element;
 
 					int modifiers= member.getFlags();
-					if (Flags.isAbstract(modifiers) && confirmAbstract(member))
+					if (confirmAbstract(member) && JdtFlags.isAbstract(member))
 						flags|= JavaElementImageDescriptor.ABSTRACT;
 					if (Flags.isFinal(modifiers) || isInterfaceOrAnnotationField(member) || isEnumConstant(member, modifiers))
 						flags|= JavaElementImageDescriptor.FINAL;
@@ -379,6 +380,10 @@ public class JavaElementImageProvider {
 							flags|= JavaElementImageDescriptor.SYNCHRONIZED;
 						if (Flags.isNative(modifiers))
 							flags|= JavaElementImageDescriptor.NATIVE;
+						if (Flags.isDefaultMethod(modifiers))
+							flags|= JavaElementImageDescriptor.DEFAULT_METHOD;
+						if (Flags.isAnnnotationDefault(modifiers))
+							flags|= JavaElementImageDescriptor.ANNOTATION_DEFAULT;
 					}
 
 					if (member.getElementType() == IJavaElement.TYPE) {
@@ -405,11 +410,11 @@ public class JavaElementImageProvider {
 
 
 	private static boolean confirmAbstract(IMember element) throws JavaModelException {
-		// never show the abstract symbol on interfaces or members in interfaces
+		// never show the abstract symbol on interfaces
 		if (element.getElementType() == IJavaElement.TYPE) {
 			return ! JavaModelUtil.isInterfaceOrAnnotation((IType) element);
 		}
-		return ! JavaModelUtil.isInterfaceOrAnnotation(element.getDeclaringType());
+		return true;
 	}
 
 	private static boolean isInterfaceOrAnnotationField(IMember element) throws JavaModelException {

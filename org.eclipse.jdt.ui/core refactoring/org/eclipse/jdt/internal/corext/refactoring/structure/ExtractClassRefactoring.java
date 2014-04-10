@@ -51,6 +51,7 @@ import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.ArrayCreation;
 import org.eclipse.jdt.core.dom.ArrayInitializer;
+import org.eclipse.jdt.core.dom.ArrayType;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -820,11 +821,11 @@ public class ExtractClassRefactoring extends Refactoring {
 					ASTNode createMoveTarget= fBaseCURewrite.getASTRewrite().createMoveTarget(expression);
 					if (expression instanceof ArrayInitializer) {
 						ArrayInitializer ai= (ArrayInitializer) expression;
-						ITypeBinding componentType= ai.resolveTypeBinding().getComponentType();
-						ArrayCreation arrayCreation= ast.newArrayCreation();
-						Type addImport= fBaseCURewrite.getImportRewrite().addImport(componentType, ast);
+						ITypeBinding type= ai.resolveTypeBinding();
+						Type addImport= fBaseCURewrite.getImportRewrite().addImport(type, ast);
 						fBaseCURewrite.getImportRemover().registerAddedImports(addImport);
-						arrayCreation.setType(ast.newArrayType(addImport));
+						ArrayCreation arrayCreation= ast.newArrayCreation();
+						arrayCreation.setType((ArrayType) addImport);
 						arrayCreation.setInitializer((ArrayInitializer) createMoveTarget);
 						listRewrite.insertLast(arrayCreation, null);
 					} else {

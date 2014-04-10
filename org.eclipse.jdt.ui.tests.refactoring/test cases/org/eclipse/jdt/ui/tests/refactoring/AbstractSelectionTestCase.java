@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2008 IBM Corporation and others.
+ * Copyright (c) 2000, 2013 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -39,6 +39,11 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.ui.tests.refactoring.infra.AbstractCUTestCase;
 import org.eclipse.jdt.ui.tests.refactoring.infra.RefactoringTestPlugin;
 
+/**
+ * Selection in the file read by {@link #getFileContents(InputStream)} is marked with
+ * /*]*&#47; and /*[*&#47; (excluding the marker comments) or
+ * /*[*&#47; and /*]*&#47; (including comments).
+ */
 public abstract class AbstractSelectionTestCase extends AbstractCUTestCase {
 
 	public static final String SQUARE_BRACKET_OPEN= "/*[*/";

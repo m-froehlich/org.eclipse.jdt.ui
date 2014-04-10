@@ -55,6 +55,7 @@ import org.eclipse.jdt.core.dom.AnnotationTypeDeclaration;
 import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.Dimension;
 import org.eclipse.jdt.core.dom.EnumDeclaration;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
@@ -64,12 +65,12 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.Javadoc;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Modifier;
-import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.TypeParameter;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ITrackedNodePosition;
@@ -210,6 +211,18 @@ public abstract class HierarchyProcessor extends SuperTypeRefactoringProcessor {
 		return status;
 	}
 
+	protected static void copyExtraDimensions(final VariableDeclaration oldVarDeclaration, final VariableDeclaration newVarDeclaration) {
+		final AST ast= newVarDeclaration.getAST();
+		for (int index= 0, n= oldVarDeclaration.extraDimensions().size(); index < n; index++)
+			newVarDeclaration.extraDimensions().add(ASTNode.copySubtree(ast, (Dimension) oldVarDeclaration.extraDimensions().get(index)));
+	}
+
+	protected static void copyExtraDimensions(final MethodDeclaration oldMethod, final MethodDeclaration newMethod) {
+		final AST ast= newMethod.getAST();
+		for (int index= 0, n= oldMethod.extraDimensions().size(); index < n; index++)
+			newMethod.extraDimensions().add(ASTNode.copySubtree(ast, (Dimension) oldMethod.extraDimensions().get(index)));
+	}
+
 	protected static void copyAnnotations(final FieldDeclaration oldField, final FieldDeclaration newField) {
 		final AST ast= newField.getAST();
 		for (int index= 0, n= oldField.modifiers().size(); index < n; index++) {
@@ -242,8 +255,8 @@ public abstract class HierarchyProcessor extends SuperTypeRefactoringProcessor {
 
 	protected static void copyThrownExceptions(final MethodDeclaration oldMethod, final MethodDeclaration newMethod) {
 		final AST ast= newMethod.getAST();
-		for (int index= 0, n= oldMethod.thrownExceptions().size(); index < n; index++)
-			newMethod.thrownExceptions().add(ASTNode.copySubtree(ast, (Name) oldMethod.thrownExceptions().get(index)));
+		for (int index= 0, n= oldMethod.thrownExceptionTypes().size(); index < n; index++)
+			newMethod.thrownExceptionTypes().add(ASTNode.copySubtree(ast, (Type) oldMethod.thrownExceptionTypes().get(index)));
 	}
 
 	protected static void copyTypeParameters(final MethodDeclaration oldMethod, final MethodDeclaration newMethod) {
@@ -267,7 +280,7 @@ public abstract class HierarchyProcessor extends SuperTypeRefactoringProcessor {
 
 	protected static FieldDeclaration createNewFieldDeclarationNode(final ASTRewrite rewrite, final CompilationUnit unit, final IField field, final VariableDeclarationFragment oldFieldFragment, final TypeVariableMaplet[] mapping, final IProgressMonitor monitor, final RefactoringStatus status, final int modifiers) throws JavaModelException {
 		final VariableDeclarationFragment newFragment= rewrite.getAST().newVariableDeclarationFragment();
-		newFragment.setExtraDimensions(oldFieldFragment.getExtraDimensions());
+		copyExtraDimensions(oldFieldFragment, newFragment);
 		if (oldFieldFragment.getInitializer() != null) {
 			Expression newInitializer= null;
 			if (mapping.length > 0)

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2011 IBM Corporation and others.
+ * Copyright (c) 2000, 2013 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -61,6 +61,11 @@ public class BindingLabelProvider extends LabelProvider {
 				adornments|= JavaElementImageDescriptor.SYNCHRONIZED;
 			if (Modifier.isNative(modifiers))
 				adornments|= JavaElementImageDescriptor.NATIVE;
+			ITypeBinding type= ((IMethodBinding) binding).getDeclaringClass();
+			if (type.isInterface() && !Modifier.isAbstract(modifiers) && !Modifier.isStatic(modifiers))
+				adornments|= JavaElementImageDescriptor.DEFAULT_METHOD;
+			if (((IMethodBinding) binding).getDefaultValue() != null)
+				adornments|= JavaElementImageDescriptor.ANNOTATION_DEFAULT;
 		}
 		if (binding instanceof IVariableBinding && ((IVariableBinding) binding).isField()) {
 			if (Modifier.isTransient(modifiers))

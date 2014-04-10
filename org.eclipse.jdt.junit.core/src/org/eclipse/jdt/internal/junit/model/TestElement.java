@@ -10,6 +10,7 @@
  *     Brock Janiczak (brockj@tpg.com.au)
  *         - https://bugs.eclipse.org/bugs/show_bug.cgi?id=102236: [JUnit] display execution time next to each test
  *     Andrej Zachar <andrej@chocolatejar.eu> - [JUnit] Add a filter for ignored tests - https://bugs.eclipse.org/bugs/show_bug.cgi?id=298603
+ *     Xavier Coulon <xcoulon@redhat.com> - https://bugs.eclipse.org/bugs/show_bug.cgi?id=102512 - [JUnit] test method name cut off before (
  *******************************************************************************/
 
 package org.eclipse.jdt.internal.junit.model;
@@ -337,11 +338,15 @@ public abstract class TestElement implements ITestElement {
 	}
 
 	public static String extractRawClassName(String testNameString) {
-		int index= testNameString.indexOf('(');
+		if (testNameString.startsWith("[") && testNameString.endsWith("]")) { //$NON-NLS-1$ //$NON-NLS-2$
+			// a group of parameterized tests, see https://bugs.eclipse.org/bugs/show_bug.cgi?id=102512
+			return testNameString;
+		}
+		int index= testNameString.lastIndexOf('(');
 		if (index < 0)
 			return testNameString;
-		testNameString= testNameString.substring(index + 1);
-		testNameString= testNameString.substring(0, testNameString.indexOf(')'));
+		int end= testNameString.lastIndexOf(')');
+		testNameString= testNameString.substring(index + 1, end > index ? end : testNameString.length());
 		return testNameString;
 	}
 

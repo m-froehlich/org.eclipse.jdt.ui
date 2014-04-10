@@ -32,7 +32,6 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.Javadoc;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
-import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.PrimitiveType;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
@@ -151,7 +150,7 @@ public abstract class AbstractMethodCorrectionProposal extends LinkedCorrectionP
 		}
 
 		addNewParameters(rewrite, takenNames, decl.parameters());
-		addNewExceptions(rewrite, decl.thrownExceptions());
+		addNewExceptions(rewrite, decl.thrownExceptionTypes());
 
 		Block body= null;
 		if (!fSenderBinding.isInterface()) {
@@ -206,7 +205,7 @@ public abstract class AbstractMethodCorrectionProposal extends LinkedCorrectionP
 	protected abstract void addNewModifiers(ASTRewrite rewrite, ASTNode targetTypeDecl, List<IExtendedModifier> exceptions);
 	protected abstract void addNewTypeParameters(ASTRewrite rewrite, List<String> takenNames, List<TypeParameter> params) throws CoreException;
 	protected abstract void addNewParameters(ASTRewrite rewrite, List<String> takenNames, List<SingleVariableDeclaration> params) throws CoreException;
-	protected abstract void addNewExceptions(ASTRewrite rewrite, List<Name> exceptions) throws CoreException;
+	protected abstract void addNewExceptions(ASTRewrite rewrite, List<Type> exceptions) throws CoreException;
 
 	protected abstract SimpleName getNewName(ASTRewrite rewrite);
 	protected abstract Type getNewMethodType(ASTRewrite rewrite) throws CoreException;

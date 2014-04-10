@@ -644,6 +644,44 @@ public class CleanUpConstants {
 	public static final String VARIABLE_DECLARATIONS_USE_FINAL_LOCAL_VARIABLES= "cleanup.make_local_variable_final"; //$NON-NLS-1$
 
 	/**
+	 * Controls conversion between lambda expressions and anonymous class creations.
+	 * For detailed settings, use {@link #USE_LAMBDA} or {@link #USE_ANONYMOUS_CLASS_CREATION}
+	 * <p>
+	 * Possible values: {TRUE, FALSE}
+	 * 
+	 * @see CleanUpOptions#TRUE
+	 * @see CleanUpOptions#FALSE
+	 * @since 3.3
+	 */
+	public static final String CONVERT_FUNCTIONAL_INTERFACES= "cleanup.convert_functional_interfaces"; //$NON-NLS-1$
+
+	/**
+	 * Replaces anonymous class creations with lambda expressions where possible in Java 8 source.
+	 * <p>
+	 * Possible values: {TRUE, FALSE}
+	 * <p>
+	 * Only has an effect if {@link #CONVERT_FUNCTIONAL_INTERFACES} is TRUE.
+	 * 
+	 * @see CleanUpOptions#TRUE
+	 * @see CleanUpOptions#FALSE
+	 * @since 3.10
+	 */
+	public static final String USE_LAMBDA= "cleanup.use_lambda"; //$NON-NLS-1$
+
+	/**
+	 * Replaces lambda expressions with anonymous class creations.
+	 * <p>
+	 * Possible values: {TRUE, FALSE}
+	 * <p>
+	 * Only has an effect if {@link #CONVERT_FUNCTIONAL_INTERFACES} is TRUE.
+	 * 
+	 * @see CleanUpOptions#TRUE
+	 * @see CleanUpOptions#FALSE
+	 * @since 3.10
+	 */
+	public static final String USE_ANONYMOUS_CLASS_CREATION= "cleanup.use_anonymous_class_creation"; //$NON-NLS-1$
+
+	/**
 	 * Adds type parameters to raw type references.
 	 * <p>
 	 * Example:
@@ -652,9 +690,7 @@ public class CleanUpConstants {
 	 *                   List l; -&gt; List&lt;Object&gt; l;
 	 * </pre>
 	 * 
-	 * Possible values: {TRUE, FALSE}<br>
-	 * Default value: Not set<br>
-	 * <br>
+	 * Possible values: {TRUE, FALSE}
 	 * 
 	 * @see CleanUpOptions#TRUE
 	 * @see CleanUpOptions#FALSE
@@ -1136,6 +1172,11 @@ public class CleanUpConstants {
 		options.setOption(VARIABLE_DECLARATIONS_USE_FINAL_PARAMETERS, CleanUpOptions.FALSE);
 		options.setOption(VARIABLE_DECLARATIONS_USE_FINAL_PRIVATE_FIELDS, CleanUpOptions.TRUE);
 
+		//Functional Interfaces
+		options.setOption(CONVERT_FUNCTIONAL_INTERFACES, CleanUpOptions.FALSE);
+		options.setOption(USE_LAMBDA, CleanUpOptions.TRUE);
+		options.setOption(USE_ANONYMOUS_CLASS_CREATION, CleanUpOptions.FALSE);
+
 		//Unused Code
 		options.setOption(REMOVE_UNUSED_CODE_IMPORTS, CleanUpOptions.TRUE);
 		options.setOption(REMOVE_UNUSED_CODE_PRIVATE_MEMBERS, CleanUpOptions.FALSE);
@@ -1215,6 +1256,11 @@ public class CleanUpConstants {
 		options.setOption(VARIABLE_DECLARATIONS_USE_FINAL_LOCAL_VARIABLES, CleanUpOptions.TRUE);
 		options.setOption(VARIABLE_DECLARATIONS_USE_FINAL_PARAMETERS, CleanUpOptions.FALSE);
 		options.setOption(VARIABLE_DECLARATIONS_USE_FINAL_PRIVATE_FIELDS, CleanUpOptions.TRUE);
+
+		//Functional Interfaces
+		options.setOption(CONVERT_FUNCTIONAL_INTERFACES, CleanUpOptions.FALSE);
+		options.setOption(USE_LAMBDA, CleanUpOptions.TRUE);
+		options.setOption(USE_ANONYMOUS_CLASS_CREATION, CleanUpOptions.FALSE);
 
 		//Unused Code
 		options.setOption(REMOVE_UNUSED_CODE_IMPORTS, CleanUpOptions.FALSE);

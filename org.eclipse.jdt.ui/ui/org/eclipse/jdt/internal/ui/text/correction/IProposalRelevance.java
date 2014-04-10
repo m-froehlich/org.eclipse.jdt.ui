@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2013 IBM Corporation and others.
+ * Copyright (c) 2012, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -15,6 +15,7 @@ package org.eclipse.jdt.internal.ui.text.correction;
 /**
  * Interface defining relevance values for quick fixes/assists.
  * 
+ * @see org.eclipse.jdt.ui.text.java.IJavaCompletionProposal#getRelevance()
  * @since 3.9
  */
 public interface IProposalRelevance {
@@ -84,6 +85,8 @@ public interface IProposalRelevance {
 	public static final int INSERT_INFERRED_TYPE_ARGUMENTS= 7;
 	public static final int RETURN_ALLOCATED_OBJECT_MATCH= 7;
 	public static final int CREATE_LOCAL= 7;
+	public static final int CHANGE_LAMBDA_BODY_TO_BLOCK= 7;
+	public static final int CHANGE_LAMBDA_BODY_TO_EXPRESSION= 7;
 	
 	public static final int REMOVE_SEMICOLON= 6;
 	public static final int CREATE_METHOD_IN_SUPER= 6;
@@ -119,6 +122,8 @@ public interface IProposalRelevance {
 	public static final int EXTRACT_LOCAL_ALL= 6;
 	public static final int CHANGE_TO_ATTRIBUTE_SIMILAR_NAME= 6;
 	public static final int CREATE_FIELD= 6;
+	public static final int CONVERT_TO_ANONYMOUS_CLASS_CREATION= 6;
+	public static final int CONVERT_TO_LAMBDA_EXPRESSION= 6;
 
 	public static final int ADD_ALL_MISSING_TAGS= 5;
 	public static final int QUALIFY_INNER_TYPE_NAME= 5;
@@ -208,6 +213,7 @@ public interface IProposalRelevance {
 	public static final int EXTRACT_LOCAL_ERROR= 2;
 	public static final int ASSIGN_TO_FIELD= 2;
 	public static final int RETURN_ALLOCATED_OBJECT= 2;
+	public static final int REMOVE_BLOCK_FIX= 2;
 
 	public static final int JOIN_VARIABLE_DECLARATION= 1;
 	public static final int INVERT_EQUALS= 1;
@@ -263,7 +269,6 @@ public interface IProposalRelevance {
 	public static final int CONVERT_TO_MESSAGE_FORMAT= 0;
 	public static final int COPY_ANNOTATION_JAR= 0;
 	public static final int ADD_ANNOTATION_BUNDLE= 0;
-	public static final int REMOVE_BLOCK_FIX= 0;
 	public static final int NO_SUGGESSTIONS_AVAILABLE= 0;
 	public static final int ADD_QUOTE= 0;
 	public static final int NEW_TYPE= 0;

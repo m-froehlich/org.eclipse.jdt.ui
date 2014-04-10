@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -33,9 +33,11 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.Annotation;
+import org.eclipse.jdt.core.dom.ArrayType;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.Dimension;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
@@ -98,6 +100,7 @@ public final class StubUtility2 {
 		rewrite.getListRewrite(decl, MethodDeclaration.MODIFIERS2_PROPERTY).insertFirst(marker, null);
 	}
 
+	/* This method should work with all AST levels. */
 	public static MethodDeclaration createConstructorStub(ICompilationUnit unit, ASTRewrite rewrite, ImportRewrite imports, ImportRewriteContext context, IMethodBinding binding, String type, int modifiers, boolean omitSuperForDefConst, boolean todo, CodeGenerationSettings settings) throws CoreException {
 		AST ast= rewrite.getAST();
 		MethodDeclaration decl= ast.newMethodDeclaration();
@@ -105,30 +108,11 @@ public final class StubUtility2 {
 		decl.setName(ast.newSimpleName(type));
 		decl.setConstructor(true);
 
-		ITypeBinding[] typeParams= binding.getTypeParameters();
-		List<TypeParameter> typeParameters= decl.typeParameters();
-		for (int i= 0; i < typeParams.length; i++) {
-			ITypeBinding curr= typeParams[i];
-			TypeParameter newTypeParam= ast.newTypeParameter();
-			newTypeParam.setName(ast.newSimpleName(curr.getName()));
-			ITypeBinding[] typeBounds= curr.getTypeBounds();
-			if (typeBounds.length != 1 || !"java.lang.Object".equals(typeBounds[0].getQualifiedName())) {//$NON-NLS-1$
-				List<Type> newTypeBounds= newTypeParam.typeBounds();
-				for (int k= 0; k < typeBounds.length; k++) {
-					newTypeBounds.add(imports.addImport(typeBounds[k], ast, context));
-				}
-			}
-			typeParameters.add(newTypeParam);
-		}
+		createTypeParameters(imports, context, ast, binding, decl);
 
-		List<SingleVariableDeclaration> parameters= createParameters(unit.getJavaProject(), imports, context, ast, binding, decl);
+		List<SingleVariableDeclaration> parameters= createParameters(unit.getJavaProject(), imports, context, ast, binding, null, decl);
 
-		List<Name> thrownExceptions= decl.thrownExceptions();
-		ITypeBinding[] excTypes= binding.getExceptionTypes();
-		for (int i= 0; i < excTypes.length; i++) {
-			String excTypeName= imports.addImport(excTypes[i], context);
-			thrownExceptions.add(ASTNodeFactory.newName(ast, excTypeName));
-		}
+		createThrownExceptions(decl, binding, imports, context, ast);
 
 		Block body= ast.newBlock();
 		decl.setBody(body);
@@ -176,30 +160,11 @@ public final class StubUtility2 {
 
 		List<SingleVariableDeclaration> parameters= decl.parameters();
 		if (superConstructor != null) {
-			ITypeBinding[] typeParams= superConstructor.getTypeParameters();
-			List<TypeParameter> typeParameters= decl.typeParameters();
-			for (int i= 0; i < typeParams.length; i++) {
-				ITypeBinding curr= typeParams[i];
-				TypeParameter newTypeParam= ast.newTypeParameter();
-				newTypeParam.setName(ast.newSimpleName(curr.getName()));
-				ITypeBinding[] typeBounds= curr.getTypeBounds();
-				if (typeBounds.length != 1 || !"java.lang.Object".equals(typeBounds[0].getQualifiedName())) {//$NON-NLS-1$
-					List<Type> newTypeBounds= newTypeParam.typeBounds();
-					for (int k= 0; k < typeBounds.length; k++) {
-						newTypeBounds.add(imports.addImport(typeBounds[k], ast, context));
-					}
-				}
-				typeParameters.add(newTypeParam);
-			}
+			createTypeParameters(imports, context, ast, superConstructor, decl);
 
-			createParameters(unit.getJavaProject(), imports, context, ast, superConstructor, decl);
+			createParameters(unit.getJavaProject(), imports, context, ast, superConstructor, null, decl);
 
-			List<Name> thrownExceptions= decl.thrownExceptions();
-			ITypeBinding[] excTypes= superConstructor.getExceptionTypes();
-			for (int i= 0; i < excTypes.length; i++) {
-				String excTypeName= imports.addImport(excTypes[i], context);
-				thrownExceptions.add(ASTNodeFactory.newName(ast, excTypeName));
-			}
+			createThrownExceptions(decl, superConstructor, imports, context, ast);
 		}
 
 		Block body= ast.newBlock();
@@ -279,51 +244,13 @@ public final class StubUtility2 {
 		decl.setName(ast.newSimpleName(delegate.getName()));
 		decl.setConstructor(false);
 
-		ITypeBinding[] typeParams= delegate.getTypeParameters();
-		List<TypeParameter> typeParameters= decl.typeParameters();
-		for (int i= 0; i < typeParams.length; i++) {
-			ITypeBinding curr= typeParams[i];
-			TypeParameter newTypeParam= ast.newTypeParameter();
-			newTypeParam.setName(ast.newSimpleName(curr.getName()));
-			ITypeBinding[] typeBounds= curr.getTypeBounds();
-			if (typeBounds.length != 1 || !"java.lang.Object".equals(typeBounds[0].getQualifiedName())) {//$NON-NLS-1$
-				List<Type> newTypeBounds= newTypeParam.typeBounds();
-				for (int k= 0; k < typeBounds.length; k++) {
-					newTypeBounds.add(imports.addImport(typeBounds[k], ast, context));
-				}
-			}
-			typeParameters.add(newTypeParam);
-		}
+		createTypeParameters(imports, context, ast, delegate, decl);
 
 		decl.setReturnType2(imports.addImport(delegate.getReturnType(), ast, context));
 
-		List<SingleVariableDeclaration> parameters= decl.parameters();
-		ITypeBinding[] params= delegate.getParameterTypes();
-		String[] paramNames= StubUtility.suggestArgumentNames(unit.getJavaProject(), delegate);
-		for (int i= 0; i < params.length; i++) {
-			SingleVariableDeclaration varDecl= ast.newSingleVariableDeclaration();
-			if (params[i].isWildcardType() && !params[i].isUpperbound())
-				varDecl.setType(imports.addImport(params[i].getBound(), ast, context));
-			else {
-				if (delegate.isVarargs() && params[i].isArray() && i == params.length - 1) {
-					StringBuffer buffer= new StringBuffer(imports.addImport(params[i].getElementType(), context));
-					for (int dim= 1; dim < params[i].getDimensions(); dim++)
-						buffer.append("[]"); //$NON-NLS-1$
-					varDecl.setType(ASTNodeFactory.newType(ast, buffer.toString()));
-					varDecl.setVarargs(true);
-				} else
-					varDecl.setType(imports.addImport(params[i], ast, context));
-			}
-			varDecl.setName(ast.newSimpleName(paramNames[i]));
-			parameters.add(varDecl);
-		}
+		List<SingleVariableDeclaration> params= createParameters(unit.getJavaProject(), imports, context, ast, delegate, null, decl);
 
-		List<Name> thrownExceptions= decl.thrownExceptions();
-		ITypeBinding[] excTypes= delegate.getExceptionTypes();
-		for (int i= 0; i < excTypes.length; i++) {
-			String excTypeName= imports.addImport(excTypes[i], context);
-			thrownExceptions.add(ASTNodeFactory.newName(ast, excTypeName));
-		}
+		createThrownExceptions(decl, delegate, imports, context, ast);
 
 		Block body= ast.newBlock();
 		decl.setBody(body);
@@ -334,8 +261,8 @@ public final class StubUtility2 {
 		MethodInvocation invocation= ast.newMethodInvocation();
 		invocation.setName(ast.newSimpleName(delegate.getName()));
 		List<Expression> arguments= invocation.arguments();
-		for (int i= 0; i < params.length; i++)
-			arguments.add(ast.newSimpleName(paramNames[i]));
+		for (int i= 0; i < params.size(); i++)
+			arguments.add(ast.newSimpleName(params.get(i).getName().getIdentifier()));
 		if (settings.useKeywordThis) {
 			FieldAccess access= ast.newFieldAccess();
 			access.setExpression(ast.newThisExpression());
@@ -382,9 +309,14 @@ public final class StubUtility2 {
 		}
 		return decl;
 	}
-
+	
 	public static MethodDeclaration createImplementationStub(ICompilationUnit unit, ASTRewrite rewrite, ImportRewrite imports,
 			ImportRewriteContext context, IMethodBinding binding, String type, CodeGenerationSettings settings, boolean inInterface) throws CoreException {
+		return createImplementationStub(unit, rewrite, imports, context, binding, null, type, settings, inInterface);
+	}
+	
+	public static MethodDeclaration createImplementationStub(ICompilationUnit unit, ASTRewrite rewrite, ImportRewrite imports,
+			ImportRewriteContext context, IMethodBinding binding, String[] parameterNames, String type, CodeGenerationSettings settings, boolean inInterface) throws CoreException {
 		Assert.isNotNull(imports);
 		Assert.isNotNull(rewrite);
 
@@ -397,23 +329,14 @@ public final class StubUtility2 {
 		decl.setConstructor(false);
 		
 		ITypeBinding bindingReturnType= binding.getReturnType();
+		if (bindingReturnType.isWildcardType()) {
+			ITypeBinding bound= bindingReturnType.getBound();
+			bindingReturnType= (bound != null) ? bound : bindingReturnType.getErasure();
+		}
 		
-		if (JavaModelUtil.is50OrHigher(unit.getJavaProject())) {
-			ITypeBinding[] typeParams= binding.getTypeParameters();
-			List<TypeParameter> typeParameters= decl.typeParameters();
-			for (int i= 0; i < typeParams.length; i++) {
-				ITypeBinding curr= typeParams[i];
-				TypeParameter newTypeParam= ast.newTypeParameter();
-				newTypeParam.setName(ast.newSimpleName(curr.getName()));
-				ITypeBinding[] typeBounds= curr.getTypeBounds();
-				if (typeBounds.length != 1 || !"java.lang.Object".equals(typeBounds[0].getQualifiedName())) {//$NON-NLS-1$
-					List<Type> newTypeBounds= newTypeParam.typeBounds();
-					for (int k= 0; k < typeBounds.length; k++) {
-						newTypeBounds.add(imports.addImport(typeBounds[k], ast, context));
-					}
-				}
-				typeParameters.add(newTypeParam);
-			}
+		IJavaProject javaProject= unit.getJavaProject();
+		if (JavaModelUtil.is50OrHigher(javaProject)) {
+			createTypeParameters(imports, context, ast, binding, decl);
 			
 		} else {
 			bindingReturnType= bindingReturnType.getErasure();
@@ -421,25 +344,22 @@ public final class StubUtility2 {
 		
 		decl.setReturnType2(imports.addImport(bindingReturnType, ast, context));
 
-		List<SingleVariableDeclaration> parameters= createParameters(unit.getJavaProject(), imports, context, ast, binding, decl);
+		List<SingleVariableDeclaration> parameters= createParameters(javaProject, imports, context, ast, binding, parameterNames, decl);
 
-		List<Name> thrownExceptions= decl.thrownExceptions();
-		ITypeBinding[] excTypes= binding.getExceptionTypes();
-		for (int i= 0; i < excTypes.length; i++) {
-			String excTypeName= imports.addImport(excTypes[i], context);
-			thrownExceptions.add(ASTNodeFactory.newName(ast, excTypeName));
-		}
+		createThrownExceptions(decl, binding, imports, context, ast);
 
 		String delimiter= unit.findRecommendedLineSeparator();
-		if (!inInterface) {
-			Map<String, String> options= unit.getJavaProject().getOptions(true);
+		int modifiers= binding.getModifiers();
+		if (!(inInterface && Modifier.isAbstract(modifiers))) {
+			// generate a method body
+
+			Map<String, String> options= javaProject.getOptions(true);
 
 			Block body= ast.newBlock();
 			decl.setBody(body);
 
 			String bodyStatement= ""; //$NON-NLS-1$
-			ITypeBinding declaringType= binding.getDeclaringClass();
-			if (Modifier.isAbstract(binding.getModifiers()) || declaringType.isAnnotation() || declaringType.isInterface()) {
+			if (Modifier.isAbstract(modifiers)) {
 				Expression expression= ASTNodeFactory.newDefaultExpression(ast, decl.getReturnType2(), decl.getExtraDimensions());
 				if (expression != null) {
 					ReturnStatement returnStatement= ast.newReturnStatement();
@@ -448,6 +368,12 @@ public final class StubUtility2 {
 				}
 			} else {
 				SuperMethodInvocation invocation= ast.newSuperMethodInvocation();
+				ITypeBinding declaringType= binding.getDeclaringClass();
+				if (declaringType.isInterface()) {
+					String qualifier= imports.addImport(declaringType, context);
+					Name name= ASTNodeFactory.newName(ast, qualifier);
+					invocation.setQualifier(name);
+				}
 				invocation.setName(ast.newSimpleName(binding.getName()));
 				SingleVariableDeclaration varDecl= null;
 				for (Iterator<SingleVariableDeclaration> iterator= parameters.iterator(); iterator.hasNext();) {
@@ -479,44 +405,120 @@ public final class StubUtility2 {
 				decl.setJavadoc(javadoc);
 			}
 		}
-		if (settings != null && settings.overrideAnnotation && JavaModelUtil.is50OrHigher(unit.getJavaProject())) {
-			addOverrideAnnotation(unit.getJavaProject(), rewrite, decl, binding);
+		if (settings != null && settings.overrideAnnotation && JavaModelUtil.is50OrHigher(javaProject)) {
+			addOverrideAnnotation(javaProject, rewrite, decl, binding);
 		}
 
 		return decl;
 	}
 
-	private static List<SingleVariableDeclaration> createParameters(IJavaProject project, ImportRewrite imports, ImportRewriteContext context, AST ast, IMethodBinding binding, MethodDeclaration decl) {
+	private static void createTypeParameters(ImportRewrite imports, ImportRewriteContext context, AST ast, IMethodBinding binding, MethodDeclaration decl) {
+		ITypeBinding[] typeParams= binding.getTypeParameters();
+		List<TypeParameter> typeParameters= decl.typeParameters();
+		for (int i= 0; i < typeParams.length; i++) {
+			ITypeBinding curr= typeParams[i];
+			TypeParameter newTypeParam= ast.newTypeParameter();
+			newTypeParam.setName(ast.newSimpleName(curr.getName()));
+			ITypeBinding[] typeBounds= curr.getTypeBounds();
+			if (typeBounds.length != 1 || !"java.lang.Object".equals(typeBounds[0].getQualifiedName())) {//$NON-NLS-1$
+				List<Type> newTypeBounds= newTypeParam.typeBounds();
+				for (int k= 0; k < typeBounds.length; k++) {
+					newTypeBounds.add(imports.addImport(typeBounds[k], ast, context));
+				}
+			}
+			typeParameters.add(newTypeParam);
+		}
+	}
+
+	private static List<SingleVariableDeclaration> createParameters(IJavaProject project, ImportRewrite imports, ImportRewriteContext context, AST ast, IMethodBinding binding, String[] paramNames, MethodDeclaration decl) {
 		boolean is50OrHigher= JavaModelUtil.is50OrHigher(project);
 		List<SingleVariableDeclaration> parameters= decl.parameters();
 		ITypeBinding[] params= binding.getParameterTypes();
-		String[] paramNames= StubUtility.suggestArgumentNames(project, binding);
+		if (paramNames == null || paramNames.length < params.length) {
+			paramNames= StubUtility.suggestArgumentNames(project, binding);
+		}
 		for (int i= 0; i < params.length; i++) {
 			SingleVariableDeclaration var= ast.newSingleVariableDeclaration();
-			if (binding.isVarargs() && params[i].isArray() && i == params.length - 1) {
-				ITypeBinding type= params[i].getElementType();
-				if (!is50OrHigher)
-					type= type.getErasure();
-				StringBuffer buffer= new StringBuffer(imports.addImport(type, context));
-				for (int dim= 1; dim < params[i].getDimensions(); dim++)
-					buffer.append("[]"); //$NON-NLS-1$
-				var.setType(ASTNodeFactory.newType(ast, buffer.toString()));
+			ITypeBinding type= params[i];
+			if (type.isWildcardType()) {
+				ITypeBinding bound= type.getBound();
+				type= (bound != null) ? bound : type.getErasure();
+			}
+			if (!is50OrHigher) {
+				type= type.getErasure();
+				var.setType(imports.addImport(type, ast, context));
+			} else if (binding.isVarargs() && type.isArray() && i == params.length - 1) {
 				var.setVarargs(true);
+				/*
+				 * Varargs annotations are special.
+				 * Example:
+				 *     foo(@O Object @A [] @B ... arg)
+				 * => @B is not an annotation on the array dimension that constitutes the vararg.
+				 * It's the type annotation of the *innermost* array dimension.
+				 */
+				int dimensions= type.getDimensions();
+				@SuppressWarnings("unchecked")
+				List<Annotation>[] dimensionAnnotations= (List<Annotation>[]) new List<?>[dimensions];
+				for (int dim= 0; dim < dimensions; dim++) {
+					dimensionAnnotations[dim]= new ArrayList<Annotation>();
+					for (IAnnotationBinding annotation : type.getTypeAnnotations()) {
+						dimensionAnnotations[dim].add(imports.addAnnotation(annotation, ast, context));
+					}
+					type= type.getComponentType();
+				}
+				
+				Type elementType= imports.addImport(type, ast, context);
+				if (dimensions == 1) {
+					var.setType(elementType);
+				} else {
+					ArrayType arrayType= ast.newArrayType(elementType, dimensions - 1);
+					List<Dimension> dimensionNodes= arrayType.dimensions();
+					for (int dim= 0; dim < dimensions - 1; dim++) { // all except the innermost dimension
+						Dimension dimension= dimensionNodes.get(dim);
+						dimension.annotations().addAll(dimensionAnnotations[dim]);
+					}
+					var.setType(arrayType);
+				}
+				List<Annotation> varargTypeAnnotations= dimensionAnnotations[dimensions - 1];
+				var.varargsAnnotations().addAll(varargTypeAnnotations);
 			} else {
-				ITypeBinding type= params[i];
-				if (!is50OrHigher)
-					type= type.getErasure();
 				var.setType(imports.addImport(type, ast, context));
 			}
 			var.setName(ast.newSimpleName(paramNames[i]));
 			IAnnotationBinding[] annotations= binding.getParameterAnnotations(i);
 			for (IAnnotationBinding annotation : annotations) {
 				if (StubUtility2.isCopyOnInheritAnnotation(annotation.getAnnotationType(), project))
-					var.modifiers().add(ASTNodeFactory.newAnnotation(ast, annotation, imports, context));
+					var.modifiers().add(imports.addAnnotation(annotation, ast, context));
 			}
 			parameters.add(var);
 		}
 		return parameters;
+	}
+
+	private static void createThrownExceptions(MethodDeclaration decl, IMethodBinding method, ImportRewrite imports, ImportRewriteContext context, AST ast) {
+		ITypeBinding[] excTypes= method.getExceptionTypes();
+		if (ast.apiLevel() >= AST.JLS8) {
+			List<Type> thrownExceptions= decl.thrownExceptionTypes();
+			for (int i= 0; i < excTypes.length; i++) {
+				Type excType= imports.addImport(excTypes[i], ast, context);
+				thrownExceptions.add(excType);
+			}
+		} else {
+			List<Name> thrownExceptions= getThrownExceptions(decl);
+			for (int i= 0; i < excTypes.length; i++) {
+				String excTypeName= imports.addImport(excTypes[i], context);
+				thrownExceptions.add(ASTNodeFactory.newName(ast, excTypeName));
+			}
+		}
+	}
+
+	/**
+	 * @param decl method declaration
+	 * @return thrown exception names
+	 * @deprecated to avoid deprecation warnings
+	 */
+	private static List<Name> getThrownExceptions(MethodDeclaration decl) {
+		return decl.thrownExceptions();
 	}
 
 	private static IMethodBinding findMethodBinding(IMethodBinding method, List<IMethodBinding> allMethods) {
@@ -538,19 +540,41 @@ public final class StubUtility2 {
 		return null;
 	}
 
-	private static void findUnimplementedInterfaceMethods(ITypeBinding typeBinding, HashSet<ITypeBinding> visited, ArrayList<IMethodBinding> allMethods, IPackageBinding currPack, ArrayList<IMethodBinding> toImplement) {
+	private static void findUnimplementedInterfaceMethods(ITypeBinding typeBinding, HashSet<ITypeBinding> visited,
+			ArrayList<IMethodBinding> allMethods, IPackageBinding currPack, ArrayList<IMethodBinding> toImplement) {
+		
 		if (visited.add(typeBinding)) {
 			IMethodBinding[] typeMethods= typeBinding.getDeclaredMethods();
-			for (int i= 0; i < typeMethods.length; i++) {
+			
+			nextMethod: for (int i= 0; i < typeMethods.length; i++) {
 				IMethodBinding curr= typeMethods[i];
-				IMethodBinding impl= findMethodBinding(curr, allMethods);
-				if (impl == null || !Bindings.isVisibleInHierarchy(impl, currPack)) {
-					if (impl != null)
-						allMethods.remove(impl);
-					if (Modifier.isAbstract(curr.getModifiers())) {
-						toImplement.add(curr);
-						allMethods.add(curr);
+				for (Iterator<IMethodBinding> allIter= allMethods.iterator(); allIter.hasNext();) {
+					IMethodBinding oneMethod= allIter.next();
+					if (Bindings.isSubsignature(oneMethod, curr)) {
+						// We've already seen a method that is a subsignature of curr.
+						if (!Bindings.isSubsignature(curr, oneMethod)) {
+							// oneMethod is a true subsignature of curr; let's go with oneMethod
+							continue nextMethod;
+						}
+						// Subsignatures are equivalent.
+						// Check visibility and return types ('getErasure()' tries to achieve effect of "rename type variables")
+						if (Bindings.isVisibleInHierarchy(oneMethod, currPack)
+								&& oneMethod.getReturnType().getErasure().isSubTypeCompatible(curr.getReturnType().getErasure())) {
+							// oneMethod is visible and curr doesn't have a stricter return type; let's go with oneMethod
+							continue nextMethod;
+						}
+						// curr is stricter than oneMethod, so let's remove oneMethod
+						allIter.remove();
+						toImplement.remove(oneMethod);
+					} else if (Bindings.isSubsignature(curr, oneMethod)) {
+						// curr is a true subsignature of oneMethod. Let's remove oneMethod.
+						allIter.remove();
+						toImplement.remove(oneMethod);
 					}
+				}
+				if (Modifier.isAbstract(curr.getModifiers())) {
+					toImplement.add(curr);
+					allMethods.add(curr);
 				}
 			}
 			ITypeBinding[] superInterfaces= typeBinding.getInterfaces();
@@ -640,7 +664,11 @@ public final class StubUtility2 {
 		int modifiers= method.getModifiers() & ~Modifier.ABSTRACT & ~Modifier.NATIVE & ~Modifier.PRIVATE;
 		if (inInterface) {
 			modifiers= modifiers & ~Modifier.PROTECTED;
-			modifiers= modifiers | Modifier.PUBLIC;
+			if (!method.getDeclaringClass().isInterface() ) {
+				modifiers= modifiers | Modifier.PUBLIC;
+			}
+		} else {
+			modifiers= modifiers & ~Modifier.DEFAULT;
 		}
 		IAnnotationBinding[] annotations= method.getAnnotations();
 		
@@ -672,7 +700,7 @@ public final class StubUtility2 {
 								String qn= otherAnnotationType.getQualifiedName();
 								if (qn.endsWith(n) && (qn.length() == n.length() || qn.charAt(qn.length() - n.length() - 1) == '.')) {
 									if (StubUtility2.isCopyOnInheritAnnotation(otherAnnotationType, javaProject))
-										result.add(ASTNodeFactory.newAnnotation(ast, annotation, importRewrite, context));
+										result.add(importRewrite.addAnnotation(annotation, ast, context));
 									break;
 								}
 							}
@@ -688,7 +716,7 @@ public final class StubUtility2 {
 		
 		for (IAnnotationBinding annotation : annotations) {
 			if (StubUtility2.isCopyOnInheritAnnotation(annotation.getAnnotationType(), javaProject))
-				result.add(ASTNodeFactory.newAnnotation(ast, annotation, importRewrite, context));
+				result.add(importRewrite.addAnnotation(annotation, ast, context));
 		}
 		
 		result.addAll(ASTNodeFactory.newModifiers(ast, modifiers));

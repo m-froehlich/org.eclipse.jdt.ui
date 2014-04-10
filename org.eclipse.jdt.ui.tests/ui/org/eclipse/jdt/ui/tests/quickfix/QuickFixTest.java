@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -71,6 +71,7 @@ public class QuickFixTest extends TestCase {
 
 	public static Test suite() {
 		TestSuite suite= new TestSuite(QuickFixTest.class.getName());
+		suite.addTest(QuickFixTest18.suite());
 		suite.addTest(SerialVersionQuickFixTest.suite());
 		suite.addTest(UtilitiesTest.suite());
 		suite.addTest(UnresolvedTypesQuickFixTest.suite());
@@ -79,6 +80,7 @@ public class QuickFixTest extends TestCase {
 		suite.addTest(ReturnTypeQuickFixTest.suite());
 		suite.addTest(LocalCorrectionsQuickFixTest.suite());
 		suite.addTest(LocalCorrectionsQuickFixTest17.suite());
+		suite.addTest(LocalCorrectionsQuickFixTest18.suite());
 		suite.addTest(TypeMismatchQuickFixTests.suite());
 		suite.addTest(ReorgQuickFixTest.suite());
 		suite.addTest(ModifierCorrectionsQuickFixTest.suite());
@@ -86,6 +88,7 @@ public class QuickFixTest extends TestCase {
 		suite.addTest(GetterSetterQuickFixTest.suite());
 		suite.addTest(AssistQuickFixTest.suite());
 		suite.addTest(AssistQuickFixTest17.suite());
+		suite.addTest(AssistQuickFixTest18.suite());
 		suite.addTest(ChangeNonStaticToStaticTest.suite());
 		suite.addTest(MarkerResolutionTest.suite());
 		suite.addTest(JavadocQuickFixTest.suite());
@@ -93,6 +96,7 @@ public class QuickFixTest extends TestCase {
 		suite.addTest(ConvertIterableLoopQuickFixTest.suite());
 		suite.addTest(AdvancedQuickAssistTest.suite());
 		suite.addTest(AdvancedQuickAssistTest17.suite());
+		suite.addTest(AdvancedQuickAssistTest18.suite());
 		suite.addTest(CleanUpTestCase.suite());
 		suite.addTest(QuickFixEnablementTest.suite());
 		suite.addTest(SurroundWithTemplateTest.suite());
@@ -271,7 +275,7 @@ public class QuickFixTest extends TestCase {
 
 		IProblem[] problems= (IProblem[]) problemsList.toArray(new IProblem[problemsList.size()]);
 		assertNumberOfProblems(nProblems, problems);
-		
+
 		return collectCorrections(cu, problems[0], null);
 	}
 

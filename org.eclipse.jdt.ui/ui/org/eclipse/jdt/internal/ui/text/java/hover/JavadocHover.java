@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -84,12 +84,7 @@ import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.NodeFinder;
-import org.eclipse.jdt.core.dom.ParameterizedType;
-import org.eclipse.jdt.core.dom.QualifiedName;
-import org.eclipse.jdt.core.dom.QualifiedType;
 import org.eclipse.jdt.core.dom.SimpleName;
-import org.eclipse.jdt.core.dom.SimpleType;
-import org.eclipse.jdt.core.dom.StructuralPropertyDescriptor;
 import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
 import org.eclipse.jdt.core.formatter.DefaultCodeFormatterConstants;
 
@@ -1039,15 +1034,11 @@ public class JavadocHover extends AbstractJavaEditorTextHover {
 
 	private static IBinding resolveBinding(ASTNode node) {
 		if (node instanceof SimpleName) {
-			// workaround for https://bugs.eclipse.org/62605 (constructor name resolves to type, not method)
 			SimpleName simpleName= (SimpleName) node;
-			StructuralPropertyDescriptor loc= simpleName.getLocationInParent();
-			while (loc == QualifiedType.NAME_PROPERTY || loc == QualifiedName.NAME_PROPERTY|| loc == SimpleType.NAME_PROPERTY || loc == ParameterizedType.TYPE_PROPERTY) {
-				node= node.getParent();
-				loc= node.getLocationInParent();
-			}
-			if (loc == ClassInstanceCreation.TYPE_PROPERTY) {
-				ClassInstanceCreation cic= (ClassInstanceCreation) node.getParent();
+			// workaround for https://bugs.eclipse.org/62605 (constructor name resolves to type, not method)
+			ASTNode normalized= ASTNodes.getNormalizedNode(simpleName);
+			if (normalized.getLocationInParent() == ClassInstanceCreation.TYPE_PROPERTY) {
+				ClassInstanceCreation cic= (ClassInstanceCreation) normalized.getParent();
 				IMethodBinding constructorBinding= cic.resolveConstructorBinding();
 				if (constructorBinding == null)
 					return null;

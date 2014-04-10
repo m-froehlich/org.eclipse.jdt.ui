@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -40,10 +40,12 @@ import org.eclipse.jdt.core.IMemberValuePair;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
+import org.eclipse.jdt.core.ISourceRange;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.ITypeParameter;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.Signature;
+import org.eclipse.jdt.core.SourceRange;
 
 import org.eclipse.jdt.internal.corext.dom.ASTNodes;
 import org.eclipse.jdt.internal.corext.util.JavaModelUtil;
@@ -966,40 +968,62 @@ public class JavaElementLabelComposer {
 				fBuffer.append('.');
 			}
 		}
+		IJavaElement parent= type.getParent();
 		if (getFlag(flags, JavaElementLabels.T_FULLY_QUALIFIED | JavaElementLabels.T_CONTAINER_QUALIFIED)) {
 			IType declaringType= type.getDeclaringType();
 			if (declaringType != null) {
 				appendTypeLabel(declaringType, JavaElementLabels.T_CONTAINER_QUALIFIED | (flags & QUALIFIER_FLAGS));
 				fBuffer.append('.');
 			}
-			int parentType= type.getParent().getElementType();
+			int parentType= parent.getElementType();
 			if (parentType == IJavaElement.METHOD || parentType == IJavaElement.FIELD || parentType == IJavaElement.INITIALIZER) { // anonymous or local
-				appendElementLabel(type.getParent(), 0);
+				appendElementLabel(parent, 0);
 				fBuffer.append('.');
 			}
 		}
 
 		String typeName= getElementName(type);
-		if (typeName.length() == 0) { // anonymous
+		
+		if (isLambdaType(type)) {
+			typeName= "() -> {...}"; //$NON-NLS-1$
 			try {
-				if (type.getParent() instanceof IField && type.isEnum()) {
-					typeName= '{' + JavaElementLabels.ELLIPSIS_STRING + '}';
-				} else {
-					String supertypeName;
-					String[] superInterfaceSignatures= type.getSuperInterfaceTypeSignatures();
-					if (superInterfaceSignatures.length > 0) {
-						supertypeName= getSimpleTypeName(type, superInterfaceSignatures[0]);
-					} else {
-						supertypeName= getSimpleTypeName(type, type.getSuperclassTypeSignature());
-					}
-					typeName= Messages.format(JavaUIMessages.JavaElementLabels_anonym_type , supertypeName);
+				String[] superInterfaceSignatures= type.getSuperInterfaceTypeSignatures();
+				if (superInterfaceSignatures.length > 0) {
+					typeName= typeName + ' ' + getSimpleTypeName(type, superInterfaceSignatures[0]);
 				}
 			} catch (JavaModelException e) {
 				//ignore
-				typeName= JavaUIMessages.JavaElementLabels_anonym;
+			}
+			
+		} else {
+			boolean isAnonymous;
+			try {
+				isAnonymous= type.isAnonymous();
+			} catch (JavaModelException e1) {
+				isAnonymous= typeName.length() == 0;
+			}
+			if (isAnonymous) {
+				try {
+					if (parent instanceof IField && type.isEnum()) {
+						typeName= '{' + JavaElementLabels.ELLIPSIS_STRING + '}';
+					} else {
+						String supertypeName;
+						String[] superInterfaceSignatures= type.getSuperInterfaceTypeSignatures();
+						if (superInterfaceSignatures.length > 0) {
+							supertypeName= getSimpleTypeName(type, superInterfaceSignatures[0]);
+						} else {
+							supertypeName= getSimpleTypeName(type, type.getSuperclassTypeSignature());
+						}
+						typeName= Messages.format(JavaUIMessages.JavaElementLabels_anonym_type , supertypeName);
+					}
+				} catch (JavaModelException e) {
+					//ignore
+					typeName= JavaUIMessages.JavaElementLabels_anonym;
+				}
 			}
 		}
 		fBuffer.append(typeName);
+		
 		if (getFlag(flags, JavaElementLabels.T_TYPE_PARAMETERS)) {
 			if (getFlag(flags, JavaElementLabels.USE_RESOLVED) && type.isResolved()) {
 				BindingKey key= new BindingKey(type.getKey());
@@ -1033,12 +1057,32 @@ public class JavaElementLabelComposer {
 			int offset= fBuffer.length();
 			fBuffer.append(JavaElementLabels.CONCAT_STRING);
 			IType declaringType= type.getDeclaringType();
+			if (declaringType == null && type.isBinary() && type.getElementName().length() == 0) {
+				// workaround for Bug 87165: [model] IType#getDeclaringType() does not work for anonymous binary type 
+				String tqn= type.getTypeQualifiedName();
+				int lastDollar= tqn.lastIndexOf('$');
+				if (lastDollar != 1) {
+					String declaringTypeCF= tqn.substring(0, lastDollar) + ".class"; //$NON-NLS-1$
+					declaringType= type.getPackageFragment().getClassFile(declaringTypeCF).getType();
+					try {
+						ISourceRange typeSourceRange= type.getSourceRange();
+						if (declaringType.exists() && SourceRange.isAvailable(typeSourceRange)) {
+							IJavaElement realParent= declaringType.getTypeRoot().getElementAt(typeSourceRange.getOffset() - 1);
+							if (realParent != null) {
+								parent= realParent;
+							}
+						}
+					} catch (JavaModelException e) {
+						// ignore
+					}
+				}
+			}
 			if (declaringType != null) {
 				appendTypeLabel(declaringType, JavaElementLabels.T_FULLY_QUALIFIED | (flags & QUALIFIER_FLAGS));
-				int parentType= type.getParent().getElementType();
+				int parentType= parent.getElementType();
 				if (parentType == IJavaElement.METHOD || parentType == IJavaElement.FIELD || parentType == IJavaElement.INITIALIZER) { // anonymous or local
 					fBuffer.append('.');
-					appendElementLabel(type.getParent(), 0);
+					appendElementLabel(parent, 0);
 				}
 			} else {
 				appendPackageFragmentLabel(type.getPackageFragment(), flags & QUALIFIER_FLAGS);
@@ -1046,6 +1090,16 @@ public class JavaElementLabelComposer {
 			if (getFlag(flags, JavaElementLabels.COLORIZE)) {
 				fBuffer.setStyle(offset, fBuffer.length() - offset, QUALIFIER_STYLE);
 			}
+		}
+	}
+
+	private static boolean isLambdaType(IType type) {
+		// TODO: use IType#isLambda() from bug 430195
+		try {
+			IMethod[] methods= type.getMethods();
+			return methods.length == 1 && methods[0].isLambdaMethod();
+		} catch (JavaModelException e) {
+			return false;
 		}
 	}
 

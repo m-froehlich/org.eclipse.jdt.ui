@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2011 IBM Corporation and others.
+ * Copyright (c) 2000, 2013 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -46,6 +46,7 @@ import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
 
 import org.eclipse.jdt.internal.corext.codemanipulation.ContextSensitiveImportRewriteContext;
 import org.eclipse.jdt.internal.corext.dom.Bindings;
+import org.eclipse.jdt.internal.corext.dom.DimensionRewrite;
 import org.eclipse.jdt.internal.corext.util.Messages;
 
 import org.eclipse.jdt.ui.JavaElementLabels;
@@ -121,7 +122,7 @@ public class TypeChangeCorrectionProposal extends LinkedCorrectionProposal {
 				MethodDeclaration methodDecl= (MethodDeclaration) declNode;
 				Type origReturnType= methodDecl.getReturnType2();
 				rewrite.set(methodDecl, MethodDeclaration.RETURN_TYPE2_PROPERTY, type, null);
-				rewrite.set(methodDecl, MethodDeclaration.EXTRA_DIMENSIONS_PROPERTY, new Integer(0), null);
+				DimensionRewrite.removeAllChildren(methodDecl, MethodDeclaration.EXTRA_DIMENSIONS2_PROPERTY, rewrite, null);
 				// add javadoc tag
 				Javadoc javadoc= methodDecl.getJavadoc();
 				if (javadoc != null && origReturnType != null && origReturnType.isPrimitiveType()
@@ -161,7 +162,7 @@ public class TypeChangeCorrectionProposal extends LinkedCorrectionProposal {
 						}
 					} else {
 						rewrite.set(fieldDecl, FieldDeclaration.TYPE_PROPERTY, type, null);
-						rewrite.set(declNode, VariableDeclarationFragment.EXTRA_DIMENSIONS_PROPERTY, new Integer(0), null);
+						DimensionRewrite.removeAllChildren(declNode, VariableDeclarationFragment.EXTRA_DIMENSIONS2_PROPERTY, rewrite, null);
 					}
 				} else if (parent instanceof VariableDeclarationStatement) {
 					VariableDeclarationStatement varDecl= (VariableDeclarationStatement) parent;
@@ -178,18 +179,18 @@ public class TypeChangeCorrectionProposal extends LinkedCorrectionProposal {
 						}
 					} else {
 						rewrite.set(varDecl, VariableDeclarationStatement.TYPE_PROPERTY, type, null);
-						rewrite.set(declNode, VariableDeclarationFragment.EXTRA_DIMENSIONS_PROPERTY, new Integer(0), null);
+						DimensionRewrite.removeAllChildren(declNode, VariableDeclarationFragment.EXTRA_DIMENSIONS2_PROPERTY, rewrite, null);
 					}
 				} else if (parent instanceof VariableDeclarationExpression) {
 					VariableDeclarationExpression varDecl= (VariableDeclarationExpression) parent;
 
 					rewrite.set(varDecl, VariableDeclarationExpression.TYPE_PROPERTY, type, null);
-					rewrite.set(declNode, VariableDeclarationFragment.EXTRA_DIMENSIONS_PROPERTY, new Integer(0), null);
+					DimensionRewrite.removeAllChildren(declNode, VariableDeclarationFragment.EXTRA_DIMENSIONS2_PROPERTY, rewrite, null);
 				}
 			} else if (declNode instanceof SingleVariableDeclaration) {
 				SingleVariableDeclaration variableDeclaration= (SingleVariableDeclaration) declNode;
 				rewrite.set(variableDeclaration, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
-				rewrite.set(variableDeclaration, SingleVariableDeclaration.EXTRA_DIMENSIONS_PROPERTY, new Integer(0), null);
+				DimensionRewrite.removeAllChildren(declNode, SingleVariableDeclaration.EXTRA_DIMENSIONS2_PROPERTY, rewrite, null);
 			}
 
 			// set up linked mode

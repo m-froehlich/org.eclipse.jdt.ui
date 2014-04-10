@@ -1,10 +1,10 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2011 IBM Corporation and others.
+ * Copyright (c) 2000, 2013 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials 
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
- * 
+ *
  * Contributors:
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
@@ -16,6 +16,8 @@ import java.util.List;
 
 import org.eclipse.jface.viewers.ITreeContentProvider;
 import org.eclipse.jface.viewers.Viewer;
+
+import org.eclipse.jdt.astview.ASTViewPlugin;
 
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
@@ -34,11 +36,13 @@ import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
+import org.eclipse.jdt.core.dom.LambdaExpression;
 import org.eclipse.jdt.core.dom.MemberRef;
 import org.eclipse.jdt.core.dom.MemberValuePair;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.MethodRef;
+import org.eclipse.jdt.core.dom.MethodReference;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.core.dom.StructuralPropertyDescriptor;
@@ -138,6 +142,19 @@ public class ASTViewContentProvider implements ITreeContentProvider {
 				res.add(createBinding(expression, binding));
 			} else if (expression instanceof Annotation) {
 				IAnnotationBinding binding= ((Annotation) expression).resolveAnnotationBinding();
+				res.add(createBinding(expression, binding));
+			} else if (expression instanceof LambdaExpression) {
+				ASTAttribute bindingAttribute;
+				try {
+					IMethodBinding binding= ((LambdaExpression) expression).resolveMethodBinding();
+					bindingAttribute= createBinding(expression, binding);
+				} catch (RuntimeException e) {
+					bindingAttribute= new Error(res, ">binding: Error: " + e.getMessage(), e);
+					ASTViewPlugin.log("Exception thrown in LambdaExpression#resolveMethodBinding() for \"" + expression + "\"", e);
+				}
+				res.add(bindingAttribute);
+			} else if (expression instanceof MethodReference) {
+				IMethodBinding binding= ((MethodReference) expression).resolveMethodBinding();
 				res.add(createBinding(expression, binding));
 			}
 			// Expression attributes:

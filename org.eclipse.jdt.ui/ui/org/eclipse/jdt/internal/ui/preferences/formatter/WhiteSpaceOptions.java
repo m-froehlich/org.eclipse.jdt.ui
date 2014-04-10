@@ -1,10 +1,10 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2011 IBM Corporation and others.
+ * Copyright (c) 2000, 2013 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
- * 
+ *
  * Contributors:
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
@@ -322,6 +322,10 @@ public final class WhiteSpaceOptions {
             CodeFormatter.K_CLASS_BODY_DECLARATIONS,
             "Map<X<?>, Y<? extends K, ? super V>> t;" //$NON-NLS-1$
         );
+    
+    private final PreviewSnippet LAMBDA_EXPR_PREVIEW= new PreviewSnippet(
+    	    CodeFormatter.K_STATEMENTS,
+    	    "Runnable r = ()->process();"); //$NON-NLS-1$
 
 	/**
 	 * Create the tree, in this order: syntax element - position - abstract element
@@ -539,6 +543,7 @@ public final class WhiteSpaceOptions {
         createAnnotationTree(workingValues, declarations);
         createEnumTree(workingValues, declarations);
         createAnnotationTypeTree(workingValues, declarations);
+		createLambdaTree(workingValues, declarations);
 
         final InnerNode statements= new InnerNode(null, workingValues, FormatterMessages.WhiteSpaceTabPage_statements);
         createOption(statements, workingValues, FormatterMessages.WhiteSpaceOptions_before_semicolon, DefaultCodeFormatterConstants.FORMATTER_INSERT_SPACE_BEFORE_SEMICOLON, SEMICOLON_PREVIEW);
@@ -581,6 +586,13 @@ public final class WhiteSpaceOptions {
 		roots.add(arrays);
 		roots.add(paramtypes);
         return roots;
+    }
+
+	private InnerNode createLambdaTree(Map<String, String> workingValues, InnerNode parent) {
+        final InnerNode root= new InnerNode(parent, workingValues, FormatterMessages.WhiteSpaceOptions_lambda);
+        createOption(root, workingValues, FormatterMessages.WhiteSpaceOptions_lambda_before_arrow_operator, DefaultCodeFormatterConstants.FORMATTER_INSERT_SPACE_BEFORE_LAMBDA_ARROW, LAMBDA_EXPR_PREVIEW);
+        createOption(root, workingValues, FormatterMessages.WhiteSpaceOptions_lambda_after_arrow_operator, DefaultCodeFormatterConstants.FORMATTER_INSERT_SPACE_AFTER_LAMBDA_ARROW, LAMBDA_EXPR_PREVIEW);
+        return root;
     }
 
 	private void createBeforeQuestionTree(Map<String, String> workingValues, final InnerNode parent) {
@@ -656,6 +668,7 @@ public final class WhiteSpaceOptions {
         createOption(parent, workingValues, FormatterMessages.WhiteSpaceOptions_binary_operator, DefaultCodeFormatterConstants.FORMATTER_INSERT_SPACE_BEFORE_BINARY_OPERATOR, OPERATOR_PREVIEW);
         createOption(parent, workingValues, FormatterMessages.WhiteSpaceOptions_prefix_operator, DefaultCodeFormatterConstants.FORMATTER_INSERT_SPACE_BEFORE_PREFIX_OPERATOR, OPERATOR_PREVIEW);
         createOption(parent, workingValues, FormatterMessages.WhiteSpaceOptions_postfix_operator, DefaultCodeFormatterConstants.FORMATTER_INSERT_SPACE_BEFORE_POSTFIX_OPERATOR, OPERATOR_PREVIEW);
+        createOption(parent, workingValues, FormatterMessages.WhiteSpaceOptions_arrow_operator, DefaultCodeFormatterConstants.FORMATTER_INSERT_SPACE_BEFORE_LAMBDA_ARROW, LAMBDA_EXPR_PREVIEW);
     }
 
     private void createBeforeClosingBracketTree(Map<String, String> workingValues, final InnerNode parent) {
@@ -832,6 +845,7 @@ public final class WhiteSpaceOptions {
         createOption(parent, workingValues, FormatterMessages.WhiteSpaceOptions_binary_operator, DefaultCodeFormatterConstants.FORMATTER_INSERT_SPACE_AFTER_BINARY_OPERATOR, OPERATOR_PREVIEW);
         createOption(parent, workingValues, FormatterMessages.WhiteSpaceOptions_prefix_operator, DefaultCodeFormatterConstants.FORMATTER_INSERT_SPACE_AFTER_PREFIX_OPERATOR, OPERATOR_PREVIEW);
         createOption(parent, workingValues, FormatterMessages.WhiteSpaceOptions_postfix_operator, DefaultCodeFormatterConstants.FORMATTER_INSERT_SPACE_AFTER_POSTFIX_OPERATOR, OPERATOR_PREVIEW);
+        createOption(parent, workingValues, FormatterMessages.WhiteSpaceOptions_arrow_operator, DefaultCodeFormatterConstants.FORMATTER_INSERT_SPACE_AFTER_LAMBDA_ARROW, LAMBDA_EXPR_PREVIEW);
     }
 
     private void createAfterOpenBracketTree(Map<String, String> workingValues, final InnerNode parent) {

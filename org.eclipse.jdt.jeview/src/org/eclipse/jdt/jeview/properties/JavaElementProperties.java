@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2005, 2013 IBM Corporation and others.
+ * Copyright (c) 2005, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -336,6 +336,11 @@ public class JavaElementProperties implements IPropertySource {
 				return ((IMethod) element).isMainMethod();
 			}
 		});
+		addProperty(new Property(IMethod.class, "isLambdaMethod") {
+			@Override public Object compute(IJavaElement element) throws JavaModelException {
+				return ((IMethod) element).isLambdaMethod();
+			}
+		});
 	}
 
 	private static void addTypeProperties() {
@@ -626,10 +631,12 @@ public class JavaElementProperties implements IPropertySource {
 		rest&= ~ appendFlag(sb, flags, Flags.AccProtected, "protected ");
 		rest&= ~ appendFlag(sb, flags, Flags.AccStatic, "static ");
 		rest&= ~ appendFlag(sb, flags, Flags.AccFinal, "final ");
-		if (IMethod.class.isAssignableFrom(clazz)) {
+		boolean isMethod = IMethod.class.isAssignableFrom(clazz);
+		if (isMethod) {
 			rest&= ~ appendFlag(sb, flags, Flags.AccSynchronized, "synchronized ");
 			rest&= ~ appendFlag(sb, flags, Flags.AccBridge, "bridge ");
 			rest&= ~ appendFlag(sb, flags, Flags.AccVarargs, "varargs ");
+			rest&= ~ appendFlag(sb, flags, Flags.AccDefaultMethod, "default(method) ");
 		} else {
 			rest&= ~ appendFlag(sb, flags, Flags.AccSuper, "super ");
 			rest&= ~ appendFlag(sb, flags, Flags.AccVolatile, "volatile ");
@@ -643,6 +650,9 @@ public class JavaElementProperties implements IPropertySource {
 		rest&= ~ appendFlag(sb, flags, Flags.AccAnnotation, "annotation ");
 		rest&= ~ appendFlag(sb, flags, Flags.AccEnum, "enum ");
 		rest&= ~ appendFlag(sb, flags, Flags.AccDeprecated, "deprecated ");
+		if (isMethod) {
+			rest&= ~ appendFlag(sb, flags, Flags.AccAnnotationDefault, "default(annotation) ");
+		}
 		
 		if (rest != 0)
 			sb.append("unknown:0x").append(Integer.toHexString(rest)).append(" ");

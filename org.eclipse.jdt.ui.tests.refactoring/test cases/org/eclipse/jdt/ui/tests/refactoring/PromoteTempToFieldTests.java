@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2011 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -105,7 +105,7 @@ public class PromoteTempToFieldTests extends RefactoringTest{
 		return createCU(pack, getSimpleEnablementTestFileName(), getFileContents(getEnablementTestFileName()));
 	}
 
-	private void passHelper(int startLine, int startColumn, int endLine, int endColumn,
+	protected void passHelper(int startLine, int startColumn, int endLine, int endColumn,
 						  String newName,
 						  boolean declareStatic,
 						  boolean declareFinal,
@@ -137,7 +137,7 @@ public class PromoteTempToFieldTests extends RefactoringTest{
 		assertEqualLines("incorrect changes", getFileContents(getTestFileName(true, false)), newcu.getSource());
 	}
 
-	private void failHelper(int startLine, int startColumn, int endLine, int endColumn,
+	protected void failHelper(int startLine, int startColumn, int endLine, int endColumn,
 						  String newName,
 						  boolean declareStatic,
 						  boolean declareFinal,

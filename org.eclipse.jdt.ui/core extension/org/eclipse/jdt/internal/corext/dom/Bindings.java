@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -1084,10 +1084,16 @@ public class Bindings {
 		binding= normalizeTypeBinding(binding);
 		if (binding == null || !binding.isWildcardType())
 			return binding;
-		if (binding.isUpperbound()) {
-			return binding.getBound();
+		ITypeBinding bound= binding.getBound();
+		if (bound == null || !binding.isUpperbound()) {
+			ITypeBinding[] typeBounds= binding.getTypeBounds();
+			if (typeBounds.length > 0) {
+				return typeBounds[0];
+			} else {
+				return binding.getErasure();
+			}
 		} else {
-			return ast.resolveWellKnownType("java.lang.Object"); //$NON-NLS-1$
+			return bound;
 		}
 	}
 
@@ -1468,6 +1474,24 @@ public class Bindings {
 		String qualifiedName= annotationType.getQualifiedName();
 		return qualifiedName.equals(project.getOption(JavaCore.COMPILER_NONNULL_ANNOTATION_NAME, true))
 				|| qualifiedName.equals(project.getOption(JavaCore.COMPILER_NULLABLE_ANNOTATION_NAME, true));
+	}
+
+	/**
+	 * Returns the n-th component type of the given type, or <code>null</code> if
+	 * the type binding is not an array type or has not that many dimensions.
+	 * 
+	 * @param arrayType an array type binding
+	 * @param n number of dimensions to cut
+	 * @return arrayType with n dimensions removed, or <code>null</code>
+	 * @since 3.10
+	 */
+	public static ITypeBinding getComponentType(ITypeBinding arrayType, int n) {
+		ITypeBinding type= arrayType;
+		while (n > 0 && type != null) {
+			type= type.getComponentType();
+			n--;
+		}
+		return type;
 	}
 
 }

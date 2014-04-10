@@ -193,13 +193,13 @@ public class JavadocTagsSubProcessor {
 				newTag= ast.newTagElement();
 				newTag.setTagName(TagElement.TAG_RETURN);
 				insertTag(tagsRewriter, newTag, null);
-		 	} else if (location == MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY) {
+			} else if (location == MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY) {
 				newTag= ast.newTagElement();
 				newTag.setTagName(TagElement.TAG_THROWS);
 				TextElement excNode= ast.newTextElement();
-				excNode.setText(ASTNodes.asString(missingNode));
+				excNode.setText(ASTNodes.getQualifiedTypeName((Type) missingNode));
 				newTag.fragments().add(excNode);
-				List<Name> exceptions= ((MethodDeclaration) bodyDecl).thrownExceptions();
+				List<Type> exceptions= ((MethodDeclaration) bodyDecl).thrownExceptionTypes();
 				insertTag(tagsRewriter, newTag, getPreviousExceptionNames(exceptions, missingNode));
 		 	} else {
 		 		Assert.isTrue(false, "AddMissingJavadocTagProposal: unexpected node location"); //$NON-NLS-1$
@@ -291,17 +291,17 @@ public class JavadocTagsSubProcessor {
 		 			}
 		 		}
 		 	}
-		 	List<Name> thrownExceptions= methodDecl.thrownExceptions();
+			List<Type> thrownExceptions= methodDecl.thrownExceptionTypes();
 		 	for (int i= thrownExceptions.size() - 1; i >= 0 ; i--) {
-		 		Name exception= thrownExceptions.get(i);
-		 		ITypeBinding binding= exception.resolveTypeBinding();
+				Type exception= thrownExceptions.get(i);
+				ITypeBinding binding= exception.resolveBinding();
 		 		if (binding != null) {
 		 			String name= binding.getName();
 		 			if (findThrowsTag(javadoc, name) == null) {
 		 				TagElement newTag= ast.newTagElement();
 		 				newTag.setTagName(TagElement.TAG_THROWS);
 						TextElement excNode= ast.newTextElement();
-						excNode.setText(ASTNodes.asString(exception));
+						excNode.setText(ASTNodes.getQualifiedTypeName(exception));
 		 				newTag.fragments().add(excNode);
 						insertTabStop(rewriter, newTag.fragments(), "exception" + i); //$NON-NLS-1$
 		 				insertTag(tagsRewriter, newTag, getPreviousExceptionNames(thrownExceptions, exception));
@@ -371,7 +371,7 @@ public class JavadocTagsSubProcessor {
 	 		}
 	 	} else if (location == MethodDeclaration.RETURN_TYPE2_PROPERTY) {
 	 		label= CorrectionMessages.JavadocTagsSubProcessor_addjavadoc_returntag_description;
-	 	} else if (location == MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY) {
+		} else if (location == MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY) {
 	 		label= CorrectionMessages.JavadocTagsSubProcessor_addjavadoc_throwstag_description;
 	 	} else {
 	 		return;
@@ -417,6 +417,7 @@ public class JavadocTagsSubProcessor {
 		} else if (isUnusedParam) {
 			label= CorrectionMessages.JavadocTagsSubProcessor_document_parameter_description;
 		} else {
+			node= ASTNodes.getNormalizedNode(node);
 			label= CorrectionMessages.JavadocTagsSubProcessor_document_exception_description;
 		}
 		ASTRewriteCorrectionProposal proposal= new AddMissingJavadocTagProposal(label, context.getCompilationUnit(), bodyDecl, node, IProposalRelevance.DOCUMENT_UNUSED_ITEM);
@@ -514,11 +515,11 @@ public class JavadocTagsSubProcessor {
 		return previousNames;
 	}
 
-	private static Set<String> getPreviousExceptionNames(List<Name> list, ASTNode missingNode) {
+	private static Set<String> getPreviousExceptionNames(List<Type> list, ASTNode missingNode) {
 		Set<String> previousNames=  new HashSet<String>();
 		for (int i= 0; i < list.size() && missingNode != list.get(i); i++) {
-			Name curr= list.get(i);
-			previousNames.add(ASTNodes.getSimpleNameIdentifier(curr));
+			Type curr= list.get(i);
+			previousNames.add(ASTNodes.getTypeName(curr));
 		}
 		return previousNames;
 	}

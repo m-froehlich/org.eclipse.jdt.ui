@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -49,11 +49,13 @@ import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.Initializer;
 import org.eclipse.jdt.core.dom.InstanceofExpression;
+import org.eclipse.jdt.core.dom.LambdaExpression;
 import org.eclipse.jdt.core.dom.MemberValuePair;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.Name;
+import org.eclipse.jdt.core.dom.NameQualifiedType;
 import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.PrimitiveType;
@@ -229,12 +231,11 @@ public class ASTResolving {
 					return getReducedDimensionBinding(annotMember.getReturnType(), dim);
 				}
 			}
-			if (creationType != null) {
-				while ((creationType instanceof ArrayType) && dim > 0) {
-					creationType= ((ArrayType) creationType).getComponentType();
-					dim--;
+			if (creationType instanceof ArrayType) {
+				ITypeBinding creationTypeBinding= ((ArrayType) creationType).resolveBinding();
+				if (creationTypeBinding != null) {
+					return Bindings.getComponentType(creationTypeBinding, dim);
 				}
-				return creationType.resolveBinding();
 			}
 			break;
 		case ASTNode.CONDITIONAL_EXPRESSION:
@@ -269,6 +270,13 @@ public class ASTResolving {
 			MethodDeclaration decl= ASTResolving.findParentMethodDeclaration(parent);
 			if (decl != null && !decl.isConstructor()) {
 				return decl.getReturnType2().resolveBinding();
+			}
+			LambdaExpression lambdaExpr= ASTResolving.findEnclosingLambdaExpression(parent);
+			if (lambdaExpr != null) {
+				IMethodBinding lambdaMethodBinding= lambdaExpr.resolveMethodBinding();
+				if (lambdaMethodBinding != null && lambdaMethodBinding.getReturnType() != null) {
+					return lambdaMethodBinding.getReturnType();
+				}
 			}
 			break;
 		case ASTNode.CAST_EXPRESSION:
@@ -346,7 +354,7 @@ public class ASTResolving {
 					if (!((ArrayAccess) parent).getIndex().equals(node)) {
 						Type type= guessTypeForReference(ast, parent);
 						if (type != null) {
-							return ast.newArrayType(type);
+							return ASTNodeFactory.newArrayType(type);
 						}
 					}
 					return null;
@@ -403,7 +411,8 @@ public class ASTResolving {
     	if (locationInParent == QualifiedName.QUALIFIER_PROPERTY) {
     		return null; // can't guess type for X.A
     	}
-    	if (locationInParent == SimpleType.NAME_PROPERTY) {
+		if (locationInParent == SimpleType.NAME_PROPERTY ||
+				locationInParent == NameQualifiedType.NAME_PROPERTY) {
     		node= node.getParent();
     	}
     	ITypeBinding binding= Bindings.normalizeTypeBinding(getPossibleTypeBinding(node));
@@ -419,11 +428,7 @@ public class ASTResolving {
 		ASTNode parent= node.getParent();
 		switch (parent.getNodeType()) {
 			case ASTNode.ARRAY_TYPE: {
-				int dim= 1;
-				while (parent.getParent() instanceof ArrayType) {
-					parent= parent.getParent();
-					dim++;
-				}
+				int dim= ((ArrayType) parent).getDimensions();
 				ITypeBinding parentBinding= getPossibleTypeBinding(parent);
 				if (parentBinding != null && parentBinding.getDimensions() == dim) {
 					return parentBinding.getElementType();
@@ -468,6 +473,16 @@ public class ASTResolving {
 				}
 				return parentBinding;
 			}
+			case ASTNode.NAME_QUALIFIED_TYPE: {
+				ITypeBinding parentBinding= getPossibleTypeBinding(parent);
+				if (parentBinding == null || !parentBinding.isMember()) {
+					return null;
+				}
+				if (node.getLocationInParent() == NameQualifiedType.QUALIFIER_PROPERTY) {
+					return parentBinding.getDeclaringClass();
+				}
+				return parentBinding;
+			}
 			case ASTNode.VARIABLE_DECLARATION_STATEMENT:
 				return guessVariableType(((VariableDeclarationStatement) parent).fragments());
 			case ASTNode.FIELD_DECLARATION:
@@ -497,9 +512,9 @@ public class ASTResolving {
 				if (TagElement.TAG_THROWS.equals(tagElement.getTagName()) || TagElement.TAG_EXCEPTION.equals(tagElement.getTagName())) {
 					ASTNode methNode= tagElement.getParent().getParent();
 					if (methNode instanceof MethodDeclaration) {
-						List<Name> thrownExceptions= ((MethodDeclaration) methNode).thrownExceptions();
+						List<Type> thrownExceptions= ((MethodDeclaration) methNode).thrownExceptionTypes();
 						if (thrownExceptions.size() == 1) {
-							return thrownExceptions.get(0).resolveTypeBinding();
+							return thrownExceptions.get(0).resolveBinding();
 						}
 					}
 				}
@@ -576,6 +591,7 @@ public class ASTResolving {
 		try {
 			astRoot.accept(new AllBindingsVisitor(visitor));
 		} catch (AllBindingsVisitor.VisitCancelledException e) {
+			// visit cancelled
 		}
 	}
 
@@ -651,11 +667,14 @@ public class ASTResolving {
 	}
 
 	/**
-	 * Finds the parent type of a node.
+	 * Finds the ancestor type of <code>node</code> (includes <code>node</code> in the search).
 	 *
-	 * @param node the node inside the type to find
-	 * @param treatModifiersOutside if set, modifiers are not part of their type, but of the type's parent
-	 * @return returns either a AbstractTypeDeclaration or an AnonymousTypeDeclaration
+	 * @param node the node to start the search from, can be <code>null</code>
+	 * @param treatModifiersOutside if set, modifiers are not part of their type, but of the type's
+	 *            parent
+	 * @return returns the ancestor type of <code>node</code> (AbstractTypeDeclaration or
+	 *         AnonymousTypeDeclaration) if any (including <code>node</code>), <code>null</code>
+	 *         otherwise
 	 */
 	public static ASTNode findParentType(ASTNode node, boolean treatModifiersOutside) {
 		StructuralPropertyDescriptor lastLocation= null;
@@ -675,24 +694,30 @@ public class ASTResolving {
 		return null;
 	}
 
+	/**
+	 * Finds the ancestor type of <code>node</code> (includes <code>node</code> in the search).
+	 *
+	 * @param node the node to start the search from, can be <code>null</code>
+	 * @return returns the ancestor type of <code>node</code> (AbstractTypeDeclaration or
+	 *         AnonymousTypeDeclaration) if any (including <code>node</code>), <code>null</code>
+	 *         otherwise
+	 */
 	public static ASTNode findParentType(ASTNode node) {
 		return findParentType(node, false);
 	}
 
 	/**
-	 * Returns the method binding of the node's parent method declaration or <code>null</code> if
-	 * the node is not inside a method.
+	 * The node's enclosing method declaration or <code>null</code> if
+	 * the node is not inside a method and is not a method declaration itself.
 	 * 
-	 * @param node the ast node
-	 * @return the method binding of the node's parent method declaration or <code>null</code> if
-	 *         the node
+	 * @param node a node
+	 * @return the enclosing method declaration or <code>null</code>
 	 */
 	public static MethodDeclaration findParentMethodDeclaration(ASTNode node) {
 		while (node != null) {
-			if (node.getNodeType() == ASTNode.METHOD_DECLARATION) {
+			if (node instanceof MethodDeclaration) {
 				return (MethodDeclaration) node;
-			}
-			if (node instanceof AbstractTypeDeclaration || node instanceof AnonymousClassDeclaration) {
+			} else if (node instanceof BodyDeclaration || node instanceof AnonymousClassDeclaration || node instanceof LambdaExpression) {
 				return null;
 			}
 			node= node.getParent();
@@ -700,6 +725,43 @@ public class ASTResolving {
 		return null;
 	}
 
+	/**
+	 * Returns the lambda expression node which encloses the given <code>node</code>, or
+	 * <code>null</code> if none.
+	 * 
+	 * @param node the node
+	 * @return the enclosing lambda expression node for the given <code>node</code>, or
+	 *         <code>null</code> if none
+	 * 
+	 * @since 3.10
+	 */
+	public static LambdaExpression findEnclosingLambdaExpression(ASTNode node) {
+		node= node.getParent();
+		while (node != null) {
+			if (node instanceof LambdaExpression) {
+				return (LambdaExpression) node;
+			}
+			if (node instanceof BodyDeclaration || node instanceof AnonymousClassDeclaration) {
+				return null;
+			}
+			node= node.getParent();
+		}
+		return null;
+	}
+
+	/**
+	 * Returns the closest ancestor of <code>node</code> (including <code>node</code> itself)
+	 * whose type is <code>nodeType</code>, or <code>null</code> if none.
+	 * <p>
+	 * <b>Warning:</b> This method does not stop at any boundaries like parentheses, statements, body declarations, etc.
+	 * The resulting node may be in a totally different scope than the given node.
+	 * Consider using one of the other {@link ASTResolving}<code>.find(..)</code> methods instead.
+	 * </p>
+	 * @param node the node
+	 * @param nodeType the node type constant from {@link ASTNode}
+	 * @return the closest ancestor of <code>node</code> (including <code>node</code> itself) 
+	 *         whose type is <code>nodeType</code>, or <code>null</code> if none
+	 */
 	public static ASTNode findAncestor(ASTNode node, int nodeType) {
 		while ((node != null) && (node.getNodeType() != nodeType)) {
 			node= node.getParent();
@@ -828,6 +890,11 @@ public class ASTResolving {
 					return mask & (SimilarElementsRequestor.REF_TYPES);
 				}
 				mask&= SimilarElementsRequestor.REF_TYPES;
+			} else if (parent instanceof NameQualifiedType) {
+				if (node.getLocationInParent() == NameQualifiedType.QUALIFIER_PROPERTY) {
+					return mask & (SimilarElementsRequestor.REF_TYPES);
+				}
+				mask&= SimilarElementsRequestor.REF_TYPES;
 			} else if (parent instanceof ParameterizedType) {
 				if (node.getLocationInParent() == ParameterizedType.TYPE_ARGUMENTS_PROPERTY) {
 					return mask & SimilarElementsRequestor.REF_TYPES_AND_VAR;
@@ -854,7 +921,7 @@ public class ASTResolving {
 				kind= SimilarElementsRequestor.INTERFACES;
 				break;
 			case ASTNode.METHOD_DECLARATION:
-				if (node.getLocationInParent() == MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY) {
+				if (node.getLocationInParent() == MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY) {
 					kind= SimilarElementsRequestor.CLASSES;
 				} else if (node.getLocationInParent() == MethodDeclaration.RETURN_TYPE2_PROPERTY) {
 					kind= SimilarElementsRequestor.ALL_TYPES | SimilarElementsRequestor.VOIDTYPE;
@@ -1085,15 +1152,23 @@ public class ASTResolving {
 	 * Use this method before creating a type for a wildcard. Either to assign a wildcard to a new type or for a type to be assigned.
 	 *
 	 * @param wildcardType the wildcard type to normalize
-	 * @param isBindingToAssign If true, then a new receiver type is searched (X x= s), else the type of a sender (R r= x)
-	 * @param ast th current AST
-	 * @return Returns the normalized binding or null when only the 'null' binding
+	 * @param isBindingToAssign if true, then the type X for new variable x is returned (X x= s);
+	 *     if false, the type of an expression x (R r= x)
+	 * @param ast the current AST
+	 * @return the normalized binding or null when only the 'null' binding
+	 * 
+	 * @see Bindings#normalizeForDeclarationUse(ITypeBinding, AST)
 	 */
 	public static ITypeBinding normalizeWildcardType(ITypeBinding wildcardType, boolean isBindingToAssign, AST ast) {
 		ITypeBinding bound= wildcardType.getBound();
 		if (isBindingToAssign) {
 			if (bound == null || !wildcardType.isUpperbound()) {
-				return ast.resolveWellKnownType("java.lang.Object"); //$NON-NLS-1$
+				ITypeBinding[] typeBounds= wildcardType.getTypeBounds();
+				if (typeBounds.length > 0) {
+					return typeBounds[0];
+				} else {
+					return wildcardType.getErasure();
+				}
 			}
 		} else {
 			if (bound == null || wildcardType.isUpperbound()) {

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2011 IBM Corporation and others.
+ * Copyright (c) 2000, 2013 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -424,7 +424,7 @@ class RenameAnalyzeUtil {
 			return result;
 
 		for (int i= 0; i < analyzePackages.length; i++) {
-			ASTNode enclosing= getEnclosingBlockOrMethod(analyzePackages[i].fDeclarationEdit, cuChange, newCUNode);
+			ASTNode enclosing= getEnclosingBlockOrMethodOrLambda(analyzePackages[i].fDeclarationEdit, cuChange, newCUNode);
 
 			// get new declaration
 			IRegion newRegion= RefactoringAnalyzeUtil.getNewTextRange(analyzePackages[i].fDeclarationEdit, cuChange);
@@ -452,10 +452,12 @@ class RenameAnalyzeUtil {
 		return null;
 	}
 
-	private static ASTNode getEnclosingBlockOrMethod(TextEdit declarationEdit, TextChange change, CompilationUnit newCUNode) {
+	private static ASTNode getEnclosingBlockOrMethodOrLambda(TextEdit declarationEdit, TextChange change, CompilationUnit newCUNode) {
 		ASTNode enclosing= RefactoringAnalyzeUtil.getBlock(declarationEdit, change, newCUNode);
 		if (enclosing == null)
 			enclosing= RefactoringAnalyzeUtil.getMethodDeclaration(declarationEdit, change, newCUNode);
+		if (enclosing == null)
+			enclosing= RefactoringAnalyzeUtil.getLambdaExpression(declarationEdit, change, newCUNode);
 		return enclosing;
 	}
 

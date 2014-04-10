@@ -503,7 +503,7 @@ public class PullUpRefactoringProcessor extends HierarchyProcessor {
 		final MethodDeclaration newMethod= ast.newMethodDeclaration();
 		newMethod.setBody(createMethodStub(methodToCreateStubFor, ast));
 		newMethod.setConstructor(false);
-		newMethod.setExtraDimensions(methodToCreateStubFor.getExtraDimensions());
+		copyExtraDimensions(methodToCreateStubFor, newMethod);
 		newMethod.modifiers().addAll(ASTNodeFactory.newModifiers(ast, getModifiersWithUpdatedVisibility(sourceMethod, JdtFlags.clearFlag(Modifier.NATIVE | Modifier.ABSTRACT, methodToCreateStubFor.getModifiers()), adjustments, new SubProgressMonitor(monitor, 1), false, status)));
 		newMethod.setName(((SimpleName) ASTNode.copySubtree(ast, methodToCreateStubFor.getName())));
 		final TypeVariableMaplet[] mapping= TypeVariableUtil.composeMappings(TypeVariableUtil.subTypeToSuperType(getDeclaringType(), getDestinationType()), TypeVariableUtil.superTypeToInheritedType(getDestinationType(), ((IType) typeToCreateStubIn.resolveBinding().getJavaElement())));
@@ -1023,7 +1023,7 @@ public class PullUpRefactoringProcessor extends HierarchyProcessor {
 		final MethodDeclaration newMethod= targetRewrite.getAST().newMethodDeclaration();
 		newMethod.setBody(null);
 		newMethod.setConstructor(false);
-		newMethod.setExtraDimensions(oldMethod.getExtraDimensions());
+		copyExtraDimensions(oldMethod, newMethod);
 		newMethod.setJavadoc(null);
 		int modifiers= getModifiersWithUpdatedVisibility(sourceMethod, Modifier.ABSTRACT | JdtFlags.clearFlag(Modifier.NATIVE | Modifier.FINAL, sourceMethod.getFlags()), adjustments, monitor, false, status);
 		if (oldMethod.isVarargs())
@@ -1319,7 +1319,7 @@ public class PullUpRefactoringProcessor extends HierarchyProcessor {
 		if (!getDestinationType().isInterface())
 			copyBodyOfPulledUpMethod(sourceRewrite, targetRewrite, sourceMethod, oldMethod, newMethod, mapping, monitor);
 		newMethod.setConstructor(oldMethod.isConstructor());
-		newMethod.setExtraDimensions(oldMethod.getExtraDimensions());
+		copyExtraDimensions(oldMethod, newMethod);
 		copyJavadocNode(rewrite, oldMethod, newMethod);
 		int modifiers= getModifiersWithUpdatedVisibility(sourceMethod, sourceMethod.getFlags(), adjustments, monitor, true, status);
 		if (fDeletedMethods.length == 0 || getDestinationType().isInterface()) {

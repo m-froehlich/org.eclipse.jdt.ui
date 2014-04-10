@@ -743,12 +743,10 @@ public class IntroduceFactoryRefactoring extends Refactoring {
 		}
 
 		ITypeBinding[] ctorExcepts= fCtorBinding.getExceptionTypes();
-		List<Name> exceptions= newMethod.thrownExceptions();
+		List<Type> exceptions= newMethod.thrownExceptionTypes();
 
 		for(int i=0; i < ctorExcepts.length; i++) {
-			String excName= fImportRewriter.addImport(ctorExcepts[i]);
-
-			exceptions.add(ASTNodeFactory.newName(ast, excName));
+			exceptions.add(fImportRewriter.addImport(ctorExcepts[i], ast));
 		}
 
         copyTypeParameters(ast, newMethod);

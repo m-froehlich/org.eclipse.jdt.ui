@@ -267,6 +267,10 @@ public class SefTests extends AbstractSelectionTestCase {
 		objectTest("field");
 	}
 
+	public void testArrayAnnotations() throws Exception {
+		objectTest("field");
+	}
+
 	//=====================================================================================
 	// static import tests
 	//=====================================================================================

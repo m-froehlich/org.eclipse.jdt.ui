@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2012 IBM Corporation and others.
+ * Copyright (c) 2000, 2013 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -370,6 +370,8 @@ public class JavaPluginImages {
 	public static final ImageDescriptor DESC_OBJ_OVERRIDES= createUnManaged(T_OBJ, "over_co.gif");  					//$NON-NLS-1$
 	public static final ImageDescriptor DESC_OBJ_IMPLEMENTS= createUnManaged(T_OBJ, "implm_co.gif");  				//$NON-NLS-1$
 
+	// Image descriptor used for default methods and annotation type elements with a default value
+	public static final ImageDescriptor DESC_OVR_ANNOTATION_DEFAULT_METHOD= createUnManagedCached(T_OVR, "default_co.gif"); //$NON-NLS-1$
 	public static final ImageDescriptor DESC_OVR_STATIC= createUnManagedCached(T_OVR, "static_co.gif"); 						//$NON-NLS-1$
 	public static final ImageDescriptor DESC_OVR_FINAL= createUnManagedCached(T_OVR, "final_co.gif"); 						//$NON-NLS-1$
 	public static final ImageDescriptor DESC_OVR_ABSTRACT= createUnManagedCached(T_OVR, "abstract_co.gif"); 					//$NON-NLS-1$

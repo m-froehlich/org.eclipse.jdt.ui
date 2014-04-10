@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2011 IBM Corporation and others.
+ * Copyright (c) 2000, 2013 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -31,6 +31,7 @@ import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
+import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ImportRewrite.ImportRewriteContext;
@@ -161,11 +162,11 @@ public class ConstructorFromSuperclassProposal extends LinkedCorrectionProposal 
 				parameters.add(var);
 			}
 
-			List<Name> thrownExceptions= decl.thrownExceptions();
+			List<Type> thrownExceptions= decl.thrownExceptionTypes();
 			ITypeBinding[] excTypes= binding.getExceptionTypes();
 			for (int i= 0; i < excTypes.length; i++) {
-				String excTypeName= getImportRewrite().addImport(excTypes[i], importRewriteContext);
-				thrownExceptions.add(ASTNodeFactory.newName(ast, excTypeName));
+				Type excType= getImportRewrite().addImport(excTypes[i], ast, importRewriteContext);
+				thrownExceptions.add(excType);
 			}
 
 			if (invocation == null) {

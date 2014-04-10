@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2011 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -454,8 +454,8 @@ public final class MoveStaticMembersProcessor extends MoveProcessor implements I
 
 		RefactoringStatus result= new RefactoringStatus();
 
-		if (fDestinationType.isInterface() && ! getDeclaringType().isInterface())
-			result.merge(checkFieldsForInterface());
+		if (fDestinationType.isInterface())
+			result.merge(checkMoveToInterface());
 		if (result.hasFatalError())
 			return result;
 
@@ -486,23 +486,31 @@ public final class MoveStaticMembersProcessor extends MoveProcessor implements I
 		return result;
 	}
 
-	private RefactoringStatus checkFieldsForInterface() throws JavaModelException {
+	private RefactoringStatus checkMoveToInterface() throws JavaModelException {
 		//could be more clever and make field final if it is only written once...
+		boolean is18OrHigher= JavaModelUtil.is18OrHigher(fDestinationType.getJavaProject());
 		RefactoringStatus result= new RefactoringStatus();
+		boolean declaringIsInterface= getDeclaringType().isInterface();
+		if (declaringIsInterface && is18OrHigher)
+			return result;
+		String moveMembersMsg= is18OrHigher ? RefactoringCoreMessages.MoveMembersRefactoring_only_public_static_18 : RefactoringCoreMessages.MoveMembersRefactoring_only_public_static;
 		for (int i= 0; i < fMembersToMove.length; i++) {
-			if (! canMoveToInterface(fMembersToMove[i])) {
-				String message= RefactoringCoreMessages.MoveMembersRefactoring_only_public_static;
-				result.addError(message, JavaStatusContext.create(fMembersToMove[i]));
+			if (declaringIsInterface && !(fMembersToMove[i] instanceof IMethod) && !is18OrHigher) {
+				// moving from interface to interface is OK, unless method is moved to pre-18
+			} else if (!canMoveToInterface(fMembersToMove[i], is18OrHigher)) {
+				result.addError(moveMembersMsg, JavaStatusContext.create(fMembersToMove[i]));
+			} else if (!Flags.isPublic(fMembersToMove[i].getFlags()) && !declaringIsInterface) {
+				result.addWarning(RefactoringCoreMessages.MoveMembersRefactoring_member_will_be_public, JavaStatusContext.create(fMembersToMove[i]));
 			}
 		}
 		return result;
 	}
 
-	private boolean canMoveToInterface(IMember member) throws JavaModelException {
+	private boolean canMoveToInterface(IMember member, boolean is18OrHigher) throws JavaModelException {
 		int flags= member.getFlags();
 		switch (member.getElementType()) {
 			case IJavaElement.FIELD:
-				if (!(Flags.isPublic(flags) && Flags.isStatic(flags) && Flags.isFinal(flags)))
+				if (!(Flags.isStatic(flags) && Flags.isFinal(flags)))
 					return false;
 				if (Flags.isEnum(flags))
 					return false;
@@ -514,7 +522,10 @@ public final class MoveStaticMembersProcessor extends MoveProcessor implements I
 				IType type= (IType) member;
 				if (type.isInterface() && !Checks.isTopLevel(type))
 					return true;
-				return Flags.isPublic(flags) && Flags.isStatic(flags);
+				return Flags.isStatic(flags);
+			}
+			case IJavaElement.METHOD: {
+				return is18OrHigher && Flags.isStatic(flags);
 			}
 			default:
 				return false;
@@ -943,6 +954,12 @@ public final class MoveStaticMembersProcessor extends MoveProcessor implements I
 					int psModifiers= Modifier.PUBLIC | Modifier.STATIC;
 					if ((typeDecl.getModifiers() & psModifiers) != psModifiers) {
 						ModifierRewrite.create(fSource.getASTRewrite(), typeDecl).setModifiers(typeDecl.getModifiers() | psModifiers, null);
+					}
+				} else if (declaration instanceof MethodDeclaration) {
+					MethodDeclaration methodDecl= (MethodDeclaration) declaration;
+					int psModifiers= Modifier.PUBLIC | Modifier.STATIC;
+					if ((methodDecl.getModifiers() & psModifiers) != psModifiers) {
+						ModifierRewrite.create(fSource.getASTRewrite(), methodDecl).setModifiers(methodDecl.getModifiers() | psModifiers, null);
 					}
 				}
 			}

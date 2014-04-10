@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -42,6 +42,7 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.Annotation;
 import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 import org.eclipse.jdt.core.dom.ArrayType;
 import org.eclipse.jdt.core.dom.Assignment;
@@ -64,11 +65,14 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.InfixExpression;
+import org.eclipse.jdt.core.dom.LambdaExpression;
+import org.eclipse.jdt.core.dom.MemberValuePair;
 import org.eclipse.jdt.core.dom.Message;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.Name;
+import org.eclipse.jdt.core.dom.NameQualifiedType;
 import org.eclipse.jdt.core.dom.NodeFinder;
 import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.ParenthesizedExpression;
@@ -81,6 +85,7 @@ import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.StringLiteral;
 import org.eclipse.jdt.core.dom.StructuralPropertyDescriptor;
 import org.eclipse.jdt.core.dom.Type;
+import org.eclipse.jdt.core.dom.UnionType;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
@@ -288,8 +293,10 @@ public class ASTNodes {
 
 	/**
 	 * Returns the type node for the given declaration.
+	 * 
 	 * @param declaration the declaration
-	 * @return the type node
+	 * @return the type node or <code>null</code> if the given declaration represents a type
+	 *         inferred parameter in lambda expression
 	 */
 	public static Type getType(VariableDeclaration declaration) {
 		if (declaration instanceof SingleVariableDeclaration) {
@@ -302,6 +309,8 @@ public class ASTNodes {
 				return ((VariableDeclarationStatement)parent).getType();
 			else if (parent instanceof FieldDeclaration)
 				return ((FieldDeclaration)parent).getType();
+			else if (parent instanceof LambdaExpression)
+				return null;
 		}
 		Assert.isTrue(false, "Unknown VariableDeclaration"); //$NON-NLS-1$
 		return null;
@@ -309,9 +318,20 @@ public class ASTNodes {
 
 	public static int getDimensions(VariableDeclaration declaration) {
 		int dim= declaration.getExtraDimensions();
-		Type type= getType(declaration);
-		if (type instanceof ArrayType) {
-			dim += ((ArrayType) type).getDimensions();
+		if (declaration instanceof VariableDeclarationFragment && declaration.getParent() instanceof LambdaExpression) {
+			LambdaExpression lambda= (LambdaExpression) declaration.getParent();
+			IMethodBinding methodBinding= lambda.resolveMethodBinding();
+			if (methodBinding != null) {
+				ITypeBinding[] parameterTypes= methodBinding.getParameterTypes();
+				int index= lambda.parameters().indexOf(declaration);
+				ITypeBinding typeBinding= parameterTypes[index];
+				return typeBinding.getDimensions();
+			}
+		} else {
+			Type type= getType(declaration);
+			if (type instanceof ArrayType) {
+				dim+= ((ArrayType) type).getDimensions();
+			}
 		}
 		return dim;
 	}
@@ -389,6 +409,17 @@ public class ASTNodes {
 		return null;
 	}
 
+	/**
+	 * Returns the simple name of the type, followed by array dimensions.
+	 * Skips qualifiers, type arguments, and type annotations.
+	 * <p>
+	 * Does <b>not</b> work for WildcardTypes, etc.!
+	 * 
+	 * @param type a type that has a simple name
+	 * @return the simple name, followed by array dimensions
+	 * @see #getSimpleNameIdentifier(Name)
+	 * @since 3.10
+	 */
 	public static String getTypeName(Type type) {
 		final StringBuffer buffer= new StringBuffer();
 		ASTVisitor visitor= new ASTVisitor() {
@@ -398,24 +429,82 @@ public class ASTNodes {
 				return false;
 			}
 			@Override
-			public boolean visit(SimpleName node) {
-				buffer.append(node.getIdentifier());
+			public boolean visit(SimpleType node) {
+				buffer.append(getSimpleNameIdentifier(node.getName()));
 				return false;
 			}
 			@Override
-			public boolean visit(QualifiedName node) {
+			public boolean visit(QualifiedType node) {
 				buffer.append(node.getName().getIdentifier());
 				return false;
 			}
 			@Override
+			public boolean visit(NameQualifiedType node) {
+				buffer.append(node.getName().getIdentifier());
+				return false;
+			}
+			@Override
+			public boolean visit(ParameterizedType node) {
+				node.getType().accept(this);
+				return false;
+			}
+			@Override
 			public void endVisit(ArrayType node) {
-				buffer.append("[]"); //$NON-NLS-1$
+				for (int i= 0; i < node.dimensions().size(); i++) {
+					buffer.append("[]"); //$NON-NLS-1$
+				}
 			}
 		};
 		type.accept(visitor);
 		return buffer.toString();
 	}
 
+	/**
+	 * Returns the (potentially qualified) name of a type, followed by array dimensions.
+	 * Skips type arguments and type annotations.
+	 * 
+	 * @param type a type that has a name
+	 * @return the name, followed by array dimensions
+	 * @since 3.10
+	 */
+	public static String getQualifiedTypeName(Type type) {
+		final StringBuffer buffer= new StringBuffer();
+		ASTVisitor visitor= new ASTVisitor() {
+			@Override
+			public boolean visit(SimpleType node) {
+				buffer.append(node.getName().getFullyQualifiedName());
+				return false;
+			}
+			@Override
+			public boolean visit(QualifiedType node) {
+				node.getQualifier().accept(this);
+				buffer.append('.');
+				buffer.append(node.getName().getIdentifier());
+				return false;
+			}
+			@Override
+			public boolean visit(NameQualifiedType node) {
+				buffer.append(node.getQualifier().getFullyQualifiedName());
+				buffer.append('.');
+				buffer.append(node.getName().getIdentifier());
+				return false;
+			}
+			@Override
+			public boolean visit(ParameterizedType node) {
+				node.getType().accept(this);
+				return false;
+			}
+			@Override
+			public void endVisit(ArrayType node) {
+				for (int i= 0; i < node.dimensions().size(); i++) {
+					buffer.append("[]"); //$NON-NLS-1$
+				}
+			}
+		};
+		type.accept(visitor);
+		return buffer.toString();
+	}
+	
 	public static InfixExpression.Operator convertToInfixOperator(Assignment.Operator operator) {
 		if (operator.equals(Assignment.Operator.PLUS_ASSIGN))
 			return InfixExpression.Operator.PLUS;
@@ -585,6 +674,13 @@ public class ASTNodes {
 		return null;
 	}
 
+	/**
+	 * For {@link Name} or {@link Type} nodes, returns the topmost {@link Type} node
+	 * that shares the same type binding as the given node.
+	 * 
+	 * @param node an ASTNode
+	 * @return the normalized {@link Type} node or the original node
+	 */
 	public static ASTNode getNormalizedNode(ASTNode node) {
 		ASTNode current= node;
 		// normalize name
@@ -592,8 +688,9 @@ public class ASTNodes {
 			current= current.getParent();
 		}
 		// normalize type
-		if (QualifiedType.NAME_PROPERTY.equals(current.getLocationInParent()) ||
-			SimpleType.NAME_PROPERTY.equals(current.getLocationInParent())) {
+		if (QualifiedType.NAME_PROPERTY.equals(current.getLocationInParent())
+				|| SimpleType.NAME_PROPERTY.equals(current.getLocationInParent())
+				|| NameQualifiedType.NAME_PROPERTY.equals(current.getLocationInParent())) {
 			current= current.getParent();
 		}
 		// normalize parameterized types
@@ -873,23 +970,15 @@ public class ASTNodes {
 		}
 	}
 
-	public static SimpleType getLeftMostSimpleType(QualifiedType type) {
-		final SimpleType[] result= new SimpleType[1];
-		ASTVisitor visitor= new ASTVisitor() {
-			@Override
-			public boolean visit(QualifiedType qualifiedType) {
-				Type left= qualifiedType.getQualifier();
-				if (left instanceof SimpleType)
-					result[0]= (SimpleType)left;
-				else
-					left.accept(this);
-				return false;
-			}
-		};
-		type.accept(visitor);
-		return result[0];
-	}
-
+	/**
+	 * Returns the topmost ancestor of <code>name</code> that is still a {@link Name}.
+	 * <p>
+	 * <b>Note:</b> The returned node may resolve to a different binding than the given <code>name</code>!
+	 * 
+	 * @param name a name node
+	 * @return the topmost name
+	 * @see #getNormalizedNode(ASTNode)
+	 */
 	public static Name getTopMostName(Name name) {
 		Name result= name;
 		while(result.getParent() instanceof Name) {
@@ -898,12 +987,29 @@ public class ASTNodes {
 		return result;
 	}
 
-	public static Type getTopMostType(Type type) {
-		Type result= type;
-		while(result.getParent() instanceof Type) {
-			result= (Type)result.getParent();
+	/**
+	 * Returns the topmost ancestor of <code>node</code> that is a {@link Type} (but not a {@link UnionType}).
+	 * <p>
+	 * <b>Note:</b> The returned node often resolves to a different binding than the given <code>node</code>!
+	 * 
+	 * @param node the starting node, can be <code>null</code>
+	 * @return the topmost type or <code>null</code> if the node is not a descendant of a type node
+	 * @see #getNormalizedNode(ASTNode)
+	 */
+	public static Type getTopMostType(ASTNode node) {
+		ASTNode result= null;
+		while (node instanceof Type && !(node instanceof UnionType)
+				|| node instanceof Name
+				|| node instanceof Annotation || node instanceof MemberValuePair
+				|| node instanceof Expression) { // Expression could maybe be reduced to expression node types that can appear in an annotation
+			result= node;
+			node= node.getParent();
 		}
-		return result;
+		
+		if (result instanceof Type)
+			return (Type) result;
+		
+		return null;
 	}
 
 	public static int changeVisibility(int modifiers, int visibility) {

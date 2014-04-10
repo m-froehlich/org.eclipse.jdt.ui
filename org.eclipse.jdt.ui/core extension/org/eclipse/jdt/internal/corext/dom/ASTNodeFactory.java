@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -17,37 +17,30 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
-import org.eclipse.jdt.core.dom.Annotation;
-import org.eclipse.jdt.core.dom.ArrayInitializer;
-import org.eclipse.jdt.core.dom.CharacterLiteral;
+import org.eclipse.jdt.core.dom.ArrayType;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.Dimension;
 import org.eclipse.jdt.core.dom.Expression;
-import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IExtendedModifier;
-import org.eclipse.jdt.core.dom.IMemberValuePairBinding;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
-import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.InfixExpression.Operator;
-import org.eclipse.jdt.core.dom.MarkerAnnotation;
-import org.eclipse.jdt.core.dom.MemberValuePair;
+import org.eclipse.jdt.core.dom.LambdaExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.NodeFinder;
-import org.eclipse.jdt.core.dom.NormalAnnotation;
+import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.PrimitiveType;
-import org.eclipse.jdt.core.dom.SimpleType;
-import org.eclipse.jdt.core.dom.SingleMemberAnnotation;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
-import org.eclipse.jdt.core.dom.StringLiteral;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
-import org.eclipse.jdt.core.dom.TypeLiteral;
 import org.eclipse.jdt.core.dom.TypeParameter;
 import org.eclipse.jdt.core.dom.UnionType;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.rewrite.ImportRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ImportRewrite.ImportRewriteContext;
 
@@ -55,7 +48,7 @@ import org.eclipse.jdt.internal.corext.util.JDTUIHelperClasses;
 
 /**
  * JDT-UI-internal helper methods to create new {@link ASTNode}s.
- * Complements <code>AST#new*(..)</code>.
+ * Complements <code>AST#new*(..)</code> and <code>ImportRewrite#add*(..)</code>.
  * 
  * @see JDTUIHelperClasses
  */
@@ -137,6 +130,26 @@ public class ASTNodeFactory {
 	}
 
 	/**
+	 * Returns an {@link ArrayType} that adds one dimension to the given type node.
+	 * If the given node is already an ArrayType, then a new {@link Dimension}
+	 * without annotations is inserted at the first position.
+	 * 
+	 * @param type the type to be wrapped
+	 * @return the array type
+	 * @since 3.10
+	 */
+	public static ArrayType newArrayType(Type type) {
+		if (type instanceof ArrayType) {
+			Dimension dimension= type.getAST().newDimension();
+			ArrayType arrayType= (ArrayType) type;
+			arrayType.dimensions().add(0, dimension); // first dimension is outermost
+			return arrayType;
+		} else {
+			return type.getAST().newArrayType(type);
+		}
+	}
+
+	/**
 	 * Returns the new type node corresponding to the type of the given declaration
 	 * including the extra dimensions.
 	 * @param ast The AST to create the resulting type with.
@@ -150,7 +163,7 @@ public class ASTNodeFactory {
 	/**
 	 * Returns the new type node corresponding to the type of the given declaration
 	 * including the extra dimensions. If the type is a {@link UnionType}, use the LUB type.
-	 * If the <code>importRewrite</code> is <code>null</code>, the type may be fully-qualified. 
+	 * If the <code>importRewrite</code> is <code>null</code>, the type may be fully-qualified.
 	 * 
 	 * @param ast The AST to create the resulting type with.
 	 * @param declaration The variable declaration to get the type from
@@ -161,8 +174,11 @@ public class ASTNodeFactory {
 	 * @since 3.7.1
 	 */
 	public static Type newType(AST ast, VariableDeclaration declaration, ImportRewrite importRewrite, ImportRewriteContext context) {
-		Type type= ASTNodes.getType(declaration);
+		if (declaration instanceof VariableDeclarationFragment && declaration.getParent() instanceof LambdaExpression) {
+			return newType((LambdaExpression) declaration.getParent(), (VariableDeclarationFragment) declaration, ast, importRewrite, context);
+		}
 
+		Type type= ASTNodes.getType(declaration);
 		if (declaration instanceof SingleVariableDeclaration) {
 			Type type2= ((SingleVariableDeclaration) declaration).getType();
 			if (type2 instanceof UnionType) {
@@ -184,12 +200,70 @@ public class ASTNodeFactory {
 				return type;
 			}
 		}
-		int extraDim= declaration.getExtraDimensions();
+		
 		type= (Type) ASTNode.copySubtree(ast, type);
-		for (int i= 0; i < extraDim; i++) {
-			type= ast.newArrayType(type);
+		
+		List<Dimension> extraDimensions= declaration.extraDimensions();
+		if (!extraDimensions.isEmpty()) {
+			ArrayType arrayType;
+			if (type instanceof ArrayType) {
+				arrayType= (ArrayType) type;
+			} else {
+				arrayType= ast.newArrayType(type, 0);
+				type= arrayType;
+			}
+			arrayType.dimensions().addAll(ASTNode.copySubtrees(ast, extraDimensions));
 		}
 		return type;
+	}
+
+	private static Type newType(LambdaExpression lambdaExpression, VariableDeclarationFragment declaration, AST ast, ImportRewrite importRewrite, ImportRewriteContext context) {
+		IMethodBinding method= lambdaExpression.resolveMethodBinding();
+		if (method != null) {
+			ITypeBinding[] parameterTypes= method.getParameterTypes();
+			int index= lambdaExpression.parameters().indexOf(declaration);
+			ITypeBinding typeBinding= parameterTypes[index];
+			if (importRewrite != null) {
+				return importRewrite.addImport(typeBinding, ast, context);
+			} else {
+				String qualifiedName= typeBinding.getQualifiedName();
+				if (qualifiedName.length() > 0) {
+					return newType(ast, qualifiedName);
+				}
+			}
+		}
+		// fall-back
+		return ast.newSimpleType(ast.newSimpleName("Object")); //$NON-NLS-1$
+	}
+
+	/**
+	 * Returns the new type node representing the return type of <code>lambdaExpression</code>
+	 * including the extra dimensions.
+	 * 
+	 * @param lambdaExpression the lambda expression
+	 * @param ast the AST to create the return type with
+	 * @param importRewrite the import rewrite to use, or <code>null</code>
+	 * @param context the import rewrite context, or <code>null</code>
+	 * @return a new type node created with the given AST representing the return type of
+	 *         <code>lambdaExpression</code>
+	 * 
+	 * @since 3.10
+	 */
+	public static Type newReturnType(LambdaExpression lambdaExpression, AST ast, ImportRewrite importRewrite, ImportRewriteContext context) {
+		IMethodBinding method= lambdaExpression.resolveMethodBinding();
+		if (method != null) {
+			ITypeBinding returnTypeBinding= method.getReturnType();
+			if (importRewrite != null) {
+				return importRewrite.addImport(returnTypeBinding, ast);
+			} else {
+				String qualifiedName= returnTypeBinding.getQualifiedName();
+				if (qualifiedName.length() > 0) {
+					return newType(ast, qualifiedName);
+				}
+			}
+		}
+		// fall-back
+		return ast.newSimpleType(ast.newSimpleName("Object")); //$NON-NLS-1$
 	}
 
 	/**
@@ -280,105 +354,36 @@ public class ASTNodeFactory {
 		return result;
 	}
 
-	public static Annotation newAnnotation(AST ast, IAnnotationBinding annotation, ImportRewrite importRewrite, ImportRewriteContext context) {
-		Type type= importRewrite.addImport(annotation.getAnnotationType(), ast, context);
-		Name name;
-		if (type instanceof SimpleType) {
-			SimpleType simpleType= (SimpleType) type;
-			name= simpleType.getName();
-			// pay ransom to allow reuse of 'name':
-			simpleType.setName(ast.newSimpleName("a")); //$NON-NLS-1$
-		} else {
-			name= ast.newName(ASTNodes.asString(type));
-		}
-		
-		IMemberValuePairBinding[] mvps= annotation.getDeclaredMemberValuePairs();
-		if (mvps.length == 0) {
-			MarkerAnnotation result= ast.newMarkerAnnotation();
-			result.setTypeName(name);
-			return result;
-		} else if (mvps.length == 1 && "value".equals(mvps[0].getName())) { //$NON-NLS-1$
-			SingleMemberAnnotation result= ast.newSingleMemberAnnotation();
-			result.setTypeName(name);
-			Object value= mvps[0].getValue();
-			if (value != null)
-				result.setValue(newAnnotationValue(ast, value, importRewrite, context));
-			return result;
-		} else {
-			NormalAnnotation result= ast.newNormalAnnotation();
-			result.setTypeName(name);
-			List<MemberValuePair> values= result.values();
-			for (int i= 0; i < mvps.length; i++) {
-				IMemberValuePairBinding mvp= mvps[i];
-				MemberValuePair mvpNode= ast.newMemberValuePair();
-				mvpNode.setName(ast.newSimpleName(mvp.getName()));
-				Object value= mvp.getValue();
-				if (value != null)
-					mvpNode.setValue(newAnnotationValue(ast, value, importRewrite, context));
-				values.add(mvpNode);
+	public static Type newCreationType(AST ast, ITypeBinding typeBinding, ImportRewrite importRewrite, ImportRewriteContext importContext) {
+		if (typeBinding.isParameterizedType()) {
+			Type baseType= newCreationType(ast, typeBinding.getTypeDeclaration(), importRewrite, importContext);
+			ParameterizedType parameterizedType= ast.newParameterizedType(baseType);
+			for (ITypeBinding typeArgument : typeBinding.getTypeArguments()) {
+				parameterizedType.typeArguments().add(newCreationType(ast, typeArgument, importRewrite, importContext));
 			}
-			return result;
+			return parameterizedType;
+			
+		} else if (typeBinding.isParameterizedType()) {
+			Type elementType= newCreationType(ast, typeBinding.getElementType(), importRewrite, importContext);
+			ArrayType arrayType= ast.newArrayType(elementType, 0);
+			while (typeBinding.isArray()) {
+				Dimension dimension= ast.newDimension();
+				IAnnotationBinding[] typeAnnotations= typeBinding.getTypeAnnotations();
+				for (IAnnotationBinding typeAnnotation : typeAnnotations) {
+					dimension.annotations().add(importRewrite.addAnnotation(typeAnnotation, ast, importContext));
+				}
+				arrayType.dimensions().add(dimension);
+				typeBinding= typeBinding.getComponentType();
+			}
+			return arrayType;
+				
+		} else if (typeBinding.isWildcardType()) {
+			ITypeBinding bound= typeBinding.getBound();
+			typeBinding= (bound != null) ? bound : typeBinding.getErasure();
+			return newCreationType(ast, typeBinding, importRewrite, importContext);
+			
+		} else {
+			return importRewrite.addImport(typeBinding, ast, importContext);
 		}
 	}
-
-	public static Expression newAnnotationValue(AST ast, Object value, ImportRewrite importRewrite, ImportRewriteContext context) {
-		if (value instanceof Boolean) {
-			return ast.newBooleanLiteral(((Boolean) value).booleanValue());
-			
-		} else if (value instanceof Byte || value instanceof Short || value instanceof Integer || value instanceof Long
-				|| value instanceof Float || value instanceof Double) {
-			return ast.newNumberLiteral(value.toString());
-			
-		} else if (value instanceof Character) {
-			CharacterLiteral result= ast.newCharacterLiteral();
-			result.setCharValue(((Character) value).charValue());
-			return result;
-			
-		} else if (value instanceof ITypeBinding) {
-			TypeLiteral result= ast.newTypeLiteral();
-			result.setType(importRewrite.addImport((ITypeBinding) value, ast, context));
-			return result;
-			
-		} else if (value instanceof String) {
-			StringLiteral result= ast.newStringLiteral();
-			result.setLiteralValue((String) value);
-			return result;
-			
-		} else if (value instanceof IVariableBinding) {
-			IVariableBinding variable= (IVariableBinding) value;
-			
-			FieldAccess result= ast.newFieldAccess();
-			result.setName(ast.newSimpleName(variable.getName()));
-			Type type= importRewrite.addImport(variable.getType(), ast, context);
-			Name name;
-			if (type instanceof SimpleType) {
-				SimpleType simpleType= (SimpleType) type;
-				name= simpleType.getName();
-				// pay ransom to allow reuse of 'name':
-				simpleType.setName(ast.newSimpleName("a")); //$NON-NLS-1$
-			} else {
-				name= ast.newName(ASTNodes.asString(type));
-			}
-			result.setExpression(name);
-			return result;
-			
-		} else if (value instanceof IAnnotationBinding) {
-			return newAnnotation(ast, (IAnnotationBinding) value, importRewrite, context);
-			
-		} else if (value instanceof Object[]) {
-			Object[] values= (Object[]) value;
-			if (values.length == 1)
-				return newAnnotationValue(ast, values[0], importRewrite, context);
-			
-			ArrayInitializer initializer= ast.newArrayInitializer();
-			List<Expression> expressions= initializer.expressions();
-			for (Object val : values)
-				expressions.add(newAnnotationValue(ast, val, importRewrite, context));
-			return initializer;
-			
-		} else {
-			return null;
-		}
-	}
-
 }

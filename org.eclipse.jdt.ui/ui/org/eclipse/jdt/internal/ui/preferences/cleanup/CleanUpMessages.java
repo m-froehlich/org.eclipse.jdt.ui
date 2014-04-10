@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2009 IBM Corporation and others.
+ * Copyright (c) 2000, 2013 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -53,15 +53,22 @@ public class CleanUpMessages extends NLS {
 	public static String CodeStyleTabPage_CheckboxName_UseFinalForFields;
 	public static String CodeStyleTabPage_CheckboxName_UseFinalForLocals;
 	public static String CodeStyleTabPage_CheckboxName_UseFinalForParameters;
+
 	public static String CodeStyleTabPage_CheckboxName_UseParentheses;
 	public static String CodeStyleTabPage_GroupName_ControlStatments;
 	public static String CodeStyleTabPage_GroupName_Expressions;
+
 	public static String CodeStyleTabPage_GroupName_VariableDeclarations;
 	public static String CodeStyleTabPage_RadioName_AlwaysUseBlocks;
 	public static String CodeStyleTabPage_RadioName_AlwaysUseParantheses;
 	public static String CodeStyleTabPage_RadioName_NeverUseBlocks;
 	public static String CodeStyleTabPage_RadioName_NeverUseParantheses;
 	public static String CodeStyleTabPage_RadioName_UseBlocksSpecial;
+	
+	public static String CodeStyleTabPage_GroupName_FunctionalInterfaces;
+	public static String CodeStyleTabPage_CheckboxName_ConvertFunctionalInterfaces;
+	public static String CodeStyleTabPage_RadioName_UseLambdaWherePossible;
+	public static String CodeStyleTabPage_RadioName_UseAnonymous;
 
 	public static String ContributedCleanUpTabPage_ErrorPage_message;
 

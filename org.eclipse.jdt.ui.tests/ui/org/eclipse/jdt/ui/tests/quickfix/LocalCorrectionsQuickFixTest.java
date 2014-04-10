@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -3081,8 +3081,7 @@ public class LocalCorrectionsQuickFixTest extends QuickFixTest {
 		buf.append("class B extends A {\n");
 		buf.append("\n");
 		buf.append("    @Override\n");
-		buf.append("    public @NonNull\n");
-		buf.append("    Object foo(@Nullable Object input) {\n");
+		buf.append("    public @NonNull Object foo(@Nullable Object input) {\n");
 		buf.append("        return null;\n");
 		buf.append("    }\n");
 		buf.append("}\n");
@@ -3125,6 +3124,180 @@ public class LocalCorrectionsQuickFixTest extends QuickFixTest {
 		buf.append("}");
 		expected[0]= buf.toString();
 
+		assertExpectedExistInProposals(proposals, expected);
+	}
+
+	public void testUnimplementedMethodsWithCovariantReturn() throws Exception {
+		// https://bugs.eclipse.org/bugs/show_bug.cgi?id=272657
+		IPackageFragment pack1= fSourceFolder.createPackageFragment("test", false, null);
+		StringBuffer buf= new StringBuffer();
+		buf.append("package test;\n");
+		buf.append("public class Test {\n");
+		buf.append("    interface Interface1 { Object getX(); }\n");
+		buf.append("    interface Interface2 { Integer getX(); }\n");
+		buf.append("    class Cls implements Interface1, Interface2 {\n");
+		buf.append("    }\n");
+		buf.append("}\n");
+		ICompilationUnit cu= pack1.createCompilationUnit("Test.java", buf.toString(), false, null);
+
+		CompilationUnit astRoot= getASTRoot(cu);
+		ArrayList proposals= collectCorrections(cu, astRoot);
+
+		assertCorrectLabels(proposals);
+		assertNumberOfProposals(proposals, 2);
+
+		String[] expected= new String[2];
+		buf= new StringBuffer();
+		buf.append("package test;\n");
+		buf.append("public class Test {\n");
+		buf.append("    interface Interface1 { Object getX(); }\n");
+		buf.append("    interface Interface2 { Integer getX(); }\n");
+		buf.append("    class Cls implements Interface1, Interface2 {\n");
+		buf.append("\n");
+		buf.append("        public Integer getX() {\n");
+		buf.append("            return null;\n");
+		buf.append("        }\n");
+		buf.append("    }\n");
+		buf.append("}\n");
+		expected[0]= buf.toString();
+
+		buf= new StringBuffer();
+		buf.append("package test;\n");
+		buf.append("public class Test {\n");
+		buf.append("    interface Interface1 { Object getX(); }\n");
+		buf.append("    interface Interface2 { Integer getX(); }\n");
+		buf.append("    abstract class Cls implements Interface1, Interface2 {\n");
+		buf.append("    }\n");
+		buf.append("}\n");
+		expected[1]= buf.toString();
+
+		assertExpectedExistInProposals(proposals, expected);
+	}
+	
+	public void testUnimplementedMethodsWithSubsignature() throws Exception {
+		// https://bugs.eclipse.org/bugs/show_bug.cgi?id=272657 , https://bugs.eclipse.org/bugs/show_bug.cgi?id=424509#c6
+		IPackageFragment pack1= fSourceFolder.createPackageFragment("test", false, null);
+		StringBuffer buf= new StringBuffer();
+		buf.append("package test;\n");
+		buf.append("import java.math.BigInteger;\n");
+		buf.append("\n");
+		buf.append("interface A { Object m(Class c); }\n");
+		buf.append("interface B<S extends Number> { Object m(Class<S> c); }\n");
+		buf.append("interface C<T extends BigInteger> { Object m(Class<T> c); }\n");
+		buf.append("interface D<S,T> extends A, B<BigInteger>, C<BigInteger> {}\n");
+		buf.append("\n");
+		buf.append("//Add unimplemented methods\n");
+		buf.append("class M implements D<BigInteger,BigInteger> {\n");
+		buf.append("}\n");
+		ICompilationUnit cu= pack1.createCompilationUnit("A.java", buf.toString(), false, null);
+
+		CompilationUnit astRoot= getASTRoot(cu);
+		ArrayList proposals= collectCorrections(cu, astRoot);
+
+		assertCorrectLabels(proposals);
+		assertNumberOfProposals(proposals, 2);
+
+		String[] expected= new String[1];
+		buf= new StringBuffer();
+		buf.append("package test;\n");
+		buf.append("import java.math.BigInteger;\n");
+		buf.append("\n");
+		buf.append("interface A { Object m(Class c); }\n");
+		buf.append("interface B<S extends Number> { Object m(Class<S> c); }\n");
+		buf.append("interface C<T extends BigInteger> { Object m(Class<T> c); }\n");
+		buf.append("interface D<S,T> extends A, B<BigInteger>, C<BigInteger> {}\n");
+		buf.append("\n");
+		buf.append("//Add unimplemented methods\n");
+		buf.append("class M implements D<BigInteger,BigInteger> {\n");
+		buf.append("\n");
+		buf.append("    public Object m(Class c) {\n");
+		buf.append("        return null;\n");
+		buf.append("    }\n");
+		buf.append("}\n");
+		expected[0]= buf.toString();
+
+		assertExpectedExistInProposals(proposals, expected);
+	}
+
+	public void testUnimplementedMethodsWithSubsignature2() throws Exception {
+		// https://bugs.eclipse.org/bugs/show_bug.cgi?id=272657 , https://bugs.eclipse.org/bugs/show_bug.cgi?id=424509#c6
+		IPackageFragment pack1= fSourceFolder.createPackageFragment("test", false, null);
+		StringBuffer buf= new StringBuffer();
+		buf.append("package test;\n");
+		buf.append("import java.math.BigInteger;\n");
+		buf.append("\n");
+		buf.append("interface A { Object m(Class c); }\n");
+		buf.append("interface B<S extends Number> { Object m(Class<S> c); }\n");
+		buf.append("interface D<S,T> extends A, B<BigInteger> {}\n");
+		buf.append("\n");
+		buf.append("class M implements D<BigInteger,BigInteger> {\n");
+		buf.append("}\n");
+		ICompilationUnit cu= pack1.createCompilationUnit("A.java", buf.toString(), false, null);
+	
+		CompilationUnit astRoot= getASTRoot(cu);
+		ArrayList proposals= collectCorrections(cu, astRoot);
+	
+		assertCorrectLabels(proposals);
+		assertNumberOfProposals(proposals, 2);
+	
+		String[] expected= new String[1];
+		buf= new StringBuffer();
+		buf.append("package test;\n");
+		buf.append("import java.math.BigInteger;\n");
+		buf.append("\n");
+		buf.append("interface A { Object m(Class c); }\n");
+		buf.append("interface B<S extends Number> { Object m(Class<S> c); }\n");
+		buf.append("interface D<S,T> extends A, B<BigInteger> {}\n");
+		buf.append("\n");
+		buf.append("class M implements D<BigInteger,BigInteger> {\n");
+		buf.append("\n");
+		buf.append("    public Object m(Class c) {\n");
+		buf.append("        return null;\n");
+		buf.append("    }\n");
+		buf.append("}\n");
+		expected[0]= buf.toString();
+	
+		assertExpectedExistInProposals(proposals, expected);
+	}
+
+	public void testUnimplementedMethodsWithSubsignature3() throws Exception {
+		// https://bugs.eclipse.org/bugs/show_bug.cgi?id=272657 , https://bugs.eclipse.org/bugs/show_bug.cgi?id=424509#c6
+		IPackageFragment pack1= fSourceFolder.createPackageFragment("test", false, null);
+		StringBuffer buf= new StringBuffer();
+		buf.append("package test;\n");
+		buf.append("import java.math.BigInteger;\n");
+		buf.append("\n");
+		buf.append("interface A { Object m(Class c); }\n");
+		buf.append("interface B<S extends Number> { Object m(Class<S> c); }\n");
+		buf.append("interface D<S,T> extends B<BigInteger>, A {}\n");
+		buf.append("\n");
+		buf.append("class M implements D<BigInteger,BigInteger> {\n");
+		buf.append("}\n");
+		ICompilationUnit cu= pack1.createCompilationUnit("A.java", buf.toString(), false, null);
+	
+		CompilationUnit astRoot= getASTRoot(cu);
+		ArrayList proposals= collectCorrections(cu, astRoot);
+	
+		assertCorrectLabels(proposals);
+		assertNumberOfProposals(proposals, 2);
+	
+		String[] expected= new String[1];
+		buf= new StringBuffer();
+		buf.append("package test;\n");
+		buf.append("import java.math.BigInteger;\n");
+		buf.append("\n");
+		buf.append("interface A { Object m(Class c); }\n");
+		buf.append("interface B<S extends Number> { Object m(Class<S> c); }\n");
+		buf.append("interface D<S,T> extends B<BigInteger>, A {}\n");
+		buf.append("\n");
+		buf.append("class M implements D<BigInteger,BigInteger> {\n");
+		buf.append("\n");
+		buf.append("    public Object m(Class c) {\n");
+		buf.append("        return null;\n");
+		buf.append("    }\n");
+		buf.append("}\n");
+		expected[0]= buf.toString();
+	
 		assertExpectedExistInProposals(proposals, expected);
 	}
 

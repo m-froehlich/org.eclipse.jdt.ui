@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2012 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -54,6 +54,7 @@ import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.Name;
+import org.eclipse.jdt.core.dom.NameQualifiedType;
 import org.eclipse.jdt.core.dom.NodeFinder;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.core.dom.PrimitiveType;
@@ -217,8 +218,12 @@ public class TypeContextChecker {
 		}
 
 		private int appendMethodDeclaration(StringBuffer cuString, String[] types, int parameterCount) throws JavaModelException {
-			if (Flags.isStatic(fMethod.getFlags()))
+			int flags= fMethod.getFlags();
+			if (Flags.isStatic(flags)) {
 				cuString.append("static "); //$NON-NLS-1$
+			} else if (Flags.isDefaultMethod(flags)) {
+				cuString.append("default "); //$NON-NLS-1$
+			}
 
 			ITypeParameter[] methodTypeParameters= fMethod.getTypeParameters();
 			if (methodTypeParameters.length != 0) {
@@ -265,7 +270,12 @@ public class TypeContextChecker {
 				}
 				@Override
 				public boolean visit(QualifiedType node) {
-					appendResolved(ASTNodes.asString(node));
+					appendResolved(ASTNodes.getQualifiedTypeName(node));
+					return false;
+				}
+				@Override
+				public boolean visit(NameQualifiedType node) {
+					appendResolved(ASTNodes.getQualifiedTypeName(node));
 					return false;
 				}
 				private void appendResolved(String typeName) {
@@ -404,9 +414,9 @@ public class TypeContextChecker {
 				return false;
 
 			ArrayType arrayType= (ArrayType)type;
-			if (! arrayType.getComponentType().isPrimitiveType())
+			if (! arrayType.getElementType().isPrimitiveType())
 				return false;
-			PrimitiveType primitiveType= (PrimitiveType)arrayType.getComponentType();
+			PrimitiveType primitiveType= (PrimitiveType) arrayType.getElementType();
 			return (primitiveType.getPrimitiveTypeCode() == PrimitiveType.VOID);
 		}
 

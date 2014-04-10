@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2011 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -21,9 +21,12 @@ public class AllRefactoringTests {
 	public static Test suite() {
 		TestSuite suite= new TestSuite(clazz.getName());
 
+		suite.addTest(RenameTests18.suite());
+
 		//--code
 		suite.addTest(ExtractMethodTests.suite());
 		suite.addTest(ExtractMethodTests17.suite());
+		suite.addTest(ExtractMethodTests18.suite());
 		suite.addTest(InlineMethodTests.suite());
 		suite.addTest(ReplaceInvocationsTests.suite());
 		suite.addTest(SefTests.suite());
@@ -43,11 +46,14 @@ public class AllRefactoringTests {
 
 		//-- structure
 		suite.addTest(ChangeSignatureTests.suite());
+		suite.addTest(ChangeSignatureTests18.suite());
 		suite.addTest(IntroduceParameterObjectTests.suite());
 		suite.addTest(PullUpTests.suite());
 		suite.addTest(PushDownTests.suite());
 		suite.addTest(MoveMembersTests.suite());
+		suite.addTest(MoveMembersTests18.suite());
 		suite.addTest(ExtractInterfaceTests.suite());
+		suite.addTest(ExtractInterfaceTests18.suite());
 		suite.addTest(ExtractSupertypeTests.suite());
 		suite.addTest(MoveInnerToTopLevelTests.suite());
 		suite.addTest(UseSupertypeWherePossibleTests.suite());

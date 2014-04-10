@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -79,6 +79,7 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.Name;
+import org.eclipse.jdt.core.dom.NameQualifiedType;
 import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.ParenthesizedExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
@@ -410,12 +411,12 @@ public class LocalCorrectionsSubProcessor {
 				}
 				uncaughtExceptions= unhandledExceptions.toArray(new ITypeBinding[unhandledExceptions.size()]);
 
-				List<Name> exceptions= methodDecl.thrownExceptions();
+				List<Type> exceptions= methodDecl.thrownExceptionTypes();
 				int nExistingExceptions= exceptions.size();
 				ChangeDescription[] desc= new ChangeDescription[nExistingExceptions + uncaughtExceptions.length];
 				for (int i= 0; i < exceptions.size(); i++) {
-					Name elem= exceptions.get(i);
-					if (isSubtype(elem.resolveTypeBinding(), uncaughtExceptions)) {
+					Type elem= exceptions.get(i);
+					if (isSubtype(elem.resolveBinding(), uncaughtExceptions)) {
 						desc[i]= new RemoveDescription();
 					}
 				}
@@ -766,13 +767,14 @@ public class LocalCorrectionsSubProcessor {
 
 	public static void addUnnecessaryThrownExceptionProposal(IInvocationContext context, IProblemLocation problem, Collection<ICommandAccess> proposals) {
 		ASTNode selectedNode= problem.getCoveringNode(context.getASTRoot());
-		if (selectedNode == null || !(selectedNode.getParent() instanceof MethodDeclaration)) {
+		selectedNode= ASTNodes.getNormalizedNode(selectedNode);
+		if (selectedNode == null || selectedNode.getLocationInParent() != MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY) {
 			return;
 		}
 		MethodDeclaration decl= (MethodDeclaration) selectedNode.getParent();
 		IMethodBinding binding= decl.resolveBinding();
 		if (binding != null) {
-			List<Name> thrownExceptions= decl.thrownExceptions();
+			List<Type> thrownExceptions= decl.thrownExceptionTypes();
 			int index= thrownExceptions.indexOf(selectedNode);
 			if (index == -1) {
 				return;
@@ -1452,10 +1454,14 @@ public class LocalCorrectionsSubProcessor {
 		Name node= null;
 		if (selectedNode instanceof SimpleType) {
 			node= ((SimpleType) selectedNode).getName();
+		} else if (selectedNode instanceof NameQualifiedType) {
+			node= ((NameQualifiedType) selectedNode).getName();
 		} else if (selectedNode instanceof ArrayType) {
 			Type elementType= ((ArrayType) selectedNode).getElementType();
 			if (elementType.isSimpleType()) {
 				node= ((SimpleType) elementType).getName();
+			} else if (elementType.isNameQualifiedType()) {
+				node= ((NameQualifiedType) elementType).getName();
 			} else {
 				return;
 			}
@@ -1479,7 +1485,7 @@ public class LocalCorrectionsSubProcessor {
 			simpleBinding= simpleBinding.getTypeDeclaration();
 		
 			if (!simpleBinding.isRecovered()) {
-				if (binding.isParameterizedType() && node.getParent() instanceof SimpleType && !(node.getParent().getParent() instanceof Type)) {
+				if (binding.isParameterizedType() && (node.getParent() instanceof SimpleType || node.getParent() instanceof NameQualifiedType) && !(node.getParent().getParent() instanceof Type)) {
 					proposals.add(UnresolvedElementsSubProcessor.createTypeRefChangeFullProposal(cu, binding, node, IProposalRelevance.TYPE_ARGUMENTS_FROM_CONTEXT));
 				}
 			}
@@ -1599,8 +1605,9 @@ public class LocalCorrectionsSubProcessor {
 						method.setExpression(ast.newName(qfn));
 						method.setName(ast.newSimpleName(methodName[1]));
 						ASTNode parent= selectedNode.getParent();
-						// add explicit type arguments if necessary:
-						if (Invocations.isInvocationWithArguments(parent)) {
+						ICompilationUnit cu= context.getCompilationUnit();
+						// add explicit type arguments if necessary (for 1.8 and later, we're optimistic that inference just works):
+						if (Invocations.isInvocationWithArguments(parent) && !JavaModelUtil.is18OrHigher(cu.getJavaProject())) {
 							IMethodBinding methodBinding= Invocations.resolveBinding(parent);
 							if (methodBinding != null) {
 								ITypeBinding[] parameterTypes= methodBinding.getParameterTypes();
@@ -1609,10 +1616,13 @@ public class LocalCorrectionsSubProcessor {
 									ITypeBinding[] typeArguments= parameterTypes[i].getTypeArguments();
 									for (int j= 0; j < typeArguments.length; j++) {
 										ITypeBinding typeArgument= typeArguments[j];
+										typeArgument= Bindings.normalizeForDeclarationUse(typeArgument, ast);
 										if (! TypeRules.isJavaLangObject(typeArgument)) {
+											// add all type arguments if at least one is found to be necessary: 
 											List<Type> typeArgumentsList= method.typeArguments();
 											for (int k= 0; k < typeArguments.length; k++) {
 												typeArgument= typeArguments[k];
+												typeArgument= Bindings.normalizeForDeclarationUse(typeArgument, ast);
 												typeArgumentsList.add(importRewrite.addImport(typeArgument, ast));
 											}
 											break;
@@ -1626,7 +1636,7 @@ public class LocalCorrectionsSubProcessor {
 
 						String label= Messages.format(CorrectionMessages.LocalCorrectionsSubProcessor_replacefieldaccesswithmethod_description, BasicElementLabels.getJavaElementName(ASTNodes.asString(method)));
 						Image image= JavaPluginImages.get(JavaPluginImages.IMG_CORRECTION_CHANGE);
-						ASTRewriteCorrectionProposal proposal= new ASTRewriteCorrectionProposal(label, context.getCompilationUnit(), astRewrite, IProposalRelevance.REPLACE_FIELD_ACCESS_WITH_METHOD, image);
+						ASTRewriteCorrectionProposal proposal= new ASTRewriteCorrectionProposal(label, cu, astRewrite, IProposalRelevance.REPLACE_FIELD_ACCESS_WITH_METHOD, image);
 						proposal.setImportRewrite(importRewrite);
 						proposals.add(proposal);
 					}

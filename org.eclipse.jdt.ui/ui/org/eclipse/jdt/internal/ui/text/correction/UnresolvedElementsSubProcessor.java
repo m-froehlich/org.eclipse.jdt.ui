@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -31,7 +31,6 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
-import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Status;
 
 import org.eclipse.core.resources.IFile;
@@ -83,6 +82,7 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.ConstructorInvocation;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.ExpressionMethodReference;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
@@ -95,6 +95,7 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.Name;
+import org.eclipse.jdt.core.dom.NameQualifiedType;
 import org.eclipse.jdt.core.dom.NormalAnnotation;
 import org.eclipse.jdt.core.dom.ParenthesizedExpression;
 import org.eclipse.jdt.core.dom.QualifiedName;
@@ -201,8 +202,14 @@ public class UnresolvedElementsSubProcessor {
 				node= (SimpleName) selectedNode;
 				ASTNode parent= node.getParent();
 				StructuralPropertyDescriptor locationInParent= node.getLocationInParent();
-				if (locationInParent == MethodInvocation.EXPRESSION_PROPERTY) {
-					typeKind= SimilarElementsRequestor.CLASSES;
+				if (locationInParent == ExpressionMethodReference.EXPRESSION_PROPERTY) {
+					typeKind= SimilarElementsRequestor.REF_TYPES;
+				} else if (locationInParent == MethodInvocation.EXPRESSION_PROPERTY) {
+					if (JavaModelUtil.is18OrHigher(cu.getJavaProject())) {
+						typeKind= SimilarElementsRequestor.CLASSES | SimilarElementsRequestor.INTERFACES | SimilarElementsRequestor.ENUMS;
+					} else {
+						typeKind= SimilarElementsRequestor.CLASSES;
+					}
 				} else if (locationInParent == FieldAccess.NAME_PROPERTY) {
 					Expression expression= ((FieldAccess) parent).getExpression();
 					if (expression != null) {
@@ -211,7 +218,7 @@ public class UnresolvedElementsSubProcessor {
 							node= null;
 						}
 					}
-				} else if (parent instanceof SimpleType) {
+				} else if (parent instanceof SimpleType || parent instanceof NameQualifiedType) {
 					suggestVariableProposals= false;
 					typeKind= SimilarElementsRequestor.REF_TYPES_AND_VAR;
 				} else if (parent instanceof QualifiedName) {
@@ -225,7 +232,7 @@ public class UnresolvedElementsSubProcessor {
 					while (outerParent instanceof QualifiedName) {
 						outerParent= outerParent.getParent();
 					}
-					if (outerParent instanceof SimpleType) {
+					if (outerParent instanceof SimpleType || outerParent instanceof NameQualifiedType) {
 						typeKind= SimilarElementsRequestor.REF_TYPES;
 						suggestVariableProposals= false;
 					}
@@ -249,7 +256,7 @@ public class UnresolvedElementsSubProcessor {
 					typeKind= SimilarElementsRequestor.REF_TYPES;
 					suggestVariableProposals= node.isSimpleName();
 				}
-				if (selectedNode.getParent() instanceof SimpleType) {
+				if (selectedNode.getParent() instanceof SimpleType || selectedNode.getParent() instanceof NameQualifiedType) {
 					typeKind= SimilarElementsRequestor.REF_TYPES;
 					suggestVariableProposals= false;
 				}
@@ -609,10 +616,14 @@ public class UnresolvedElementsSubProcessor {
 		Name node= null;
 		if (selectedNode instanceof SimpleType) {
 			node= ((SimpleType) selectedNode).getName();
+		} else if (selectedNode instanceof NameQualifiedType) {
+			node= ((NameQualifiedType) selectedNode).getName();
 		} else if (selectedNode instanceof ArrayType) {
 			Type elementType= ((ArrayType) selectedNode).getElementType();
 			if (elementType.isSimpleType()) {
 				node= ((SimpleType) elementType).getName();
+			} else if (elementType.isNameQualifiedType()) {
+				node= ((NameQualifiedType) elementType).getName();
 			} else {
 				return;
 			}
@@ -641,7 +652,7 @@ public class UnresolvedElementsSubProcessor {
 	}
 
 	private static void addEnhancedForWithoutTypeProposals(ICompilationUnit cu, ASTNode selectedNode, Collection<ICommandAccess> proposals) {
-		if (selectedNode instanceof SimpleName && selectedNode.getLocationInParent() == SimpleType.NAME_PROPERTY) {
+		if (selectedNode instanceof SimpleName && (selectedNode.getLocationInParent() == SimpleType.NAME_PROPERTY || selectedNode.getLocationInParent() == NameQualifiedType.NAME_PROPERTY)) {
 			ASTNode type= selectedNode.getParent();
 			if (type.getLocationInParent() == SingleVariableDeclaration.TYPE_PROPERTY) {
 				SingleVariableDeclaration svd= (SingleVariableDeclaration) type.getParent();
@@ -687,12 +698,13 @@ public class UnresolvedElementsSubProcessor {
 			return;
 		if (javaProject.findType(defaultOptions.get(annotationNameOptions[0])) != null)
 			return;
-		Bundle annotationsBundle= Platform.getBundle("org.eclipse.jdt.annotation"); //$NON-NLS-1$
-		if (annotationsBundle == null)
+		String version= JavaModelUtil.is18OrHigher(javaProject) ? "2" : "[1.1.0,2.0.0)"; //$NON-NLS-1$ //$NON-NLS-2$
+		Bundle[] annotationsBundles= JavaPlugin.getDefault().getBundles("org.eclipse.jdt.annotation", version); //$NON-NLS-1$
+		if (annotationsBundles == null)
 			return;
 		
 		if (! addAddToBuildPropertiesProposal(cu, node, nullityAnnotation, proposals))
-			addCopyAnnotationsJarProposal(cu, node, nullityAnnotation, annotationsBundle, proposals);
+			addCopyAnnotationsJarProposal(cu, node, nullityAnnotation, annotationsBundles[0], proposals);
 	}
 
 	private static boolean addAddToBuildPropertiesProposal(final ICompilationUnit cu, final Name name, final String fullyQualifiedName, Collection<ICommandAccess> proposals) throws CoreException {
@@ -840,7 +852,9 @@ public class UnresolvedElementsSubProcessor {
 				if (proposal instanceof AddImportCorrectionProposal)
 					proposal.setRelevance(relevance + elements.length + 2);
 
-				if (binding.isParameterizedType() && node.getParent() instanceof SimpleType && !(node.getParent().getParent() instanceof Type)) {
+				if (binding.isParameterizedType()
+						&& (node.getParent() instanceof SimpleType || node.getParent() instanceof NameQualifiedType)
+						&& !(node.getParent().getParent() instanceof Type)) {
 					proposals.add(createTypeRefChangeFullProposal(cu, binding, node, relevance + 5));
 				}
 			}

@@ -8,6 +8,7 @@
  * Contributors:
  *     IBM Corporation - initial API and implementation
  *     Andrej Zachar <andrej@chocolatejar.eu> - [JUnit] Add a filter for ignored tests - https://bugs.eclipse.org/bugs/show_bug.cgi?id=298603
+ *     Xavier Coulon <xcoulon@redhat.com> - https://bugs.eclipse.org/bugs/show_bug.cgi?id=102512 - [JUnit] test method name cut off before (
  *******************************************************************************/
 
 package org.eclipse.jdt.internal.junit.model;
@@ -34,7 +35,7 @@ public class TestCaseElement extends TestElement implements ITestCaseElement {
 	 */
 	public String getTestMethodName() {
 		String testName= getTestName();
-		int index= testName.indexOf('(');
+		int index= testName.lastIndexOf('(');
 		if (index > 0)
 			return testName.substring(0, index);
 		index= testName.indexOf('@');

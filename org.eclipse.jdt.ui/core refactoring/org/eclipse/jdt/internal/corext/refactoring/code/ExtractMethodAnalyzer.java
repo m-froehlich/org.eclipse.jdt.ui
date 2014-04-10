@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2012 IBM Corporation and others.
+ * Copyright (c) 2000, 2013 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -31,6 +31,7 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.Annotation;
+import org.eclipse.jdt.core.dom.AnnotationTypeDeclaration;
 import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
@@ -44,12 +45,14 @@ import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
+import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.Initializer;
 import org.eclipse.jdt.core.dom.LabeledStatement;
+import org.eclipse.jdt.core.dom.LambdaExpression;
 import org.eclipse.jdt.core.dom.Message;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Name;
@@ -64,6 +67,7 @@ import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
+import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
@@ -78,6 +82,7 @@ import org.eclipse.jdt.internal.corext.dom.ASTNodes;
 import org.eclipse.jdt.internal.corext.dom.Bindings;
 import org.eclipse.jdt.internal.corext.dom.LocalVariableIndex;
 import org.eclipse.jdt.internal.corext.dom.Selection;
+import org.eclipse.jdt.internal.corext.dom.TokenScanner;
 import org.eclipse.jdt.internal.corext.refactoring.Checks;
 import org.eclipse.jdt.internal.corext.refactoring.RefactoringCoreMessages;
 import org.eclipse.jdt.internal.corext.refactoring.base.JavaStatusContext;
@@ -86,10 +91,12 @@ import org.eclipse.jdt.internal.corext.refactoring.code.flow.FlowInfo;
 import org.eclipse.jdt.internal.corext.refactoring.code.flow.InOutFlowAnalyzer;
 import org.eclipse.jdt.internal.corext.refactoring.code.flow.InputFlowAnalyzer;
 import org.eclipse.jdt.internal.corext.refactoring.util.CodeAnalyzer;
+import org.eclipse.jdt.internal.corext.util.JavaModelUtil;
 import org.eclipse.jdt.internal.corext.util.Messages;
 
 import org.eclipse.jdt.ui.JavaElementLabels;
 
+import org.eclipse.jdt.internal.ui.text.correction.ASTResolving;
 import org.eclipse.jdt.internal.ui.viewsupport.BasicElementLabels;
 import org.eclipse.jdt.internal.ui.viewsupport.BindingLabelProvider;
 
@@ -198,11 +205,30 @@ import org.eclipse.jdt.internal.ui.viewsupport.BindingLabelProvider;
 
 	//---- Activation checking ---------------------------------------------------------------------------
 
+	boolean isValidDestination(ASTNode node) {
+		boolean isInterface= node instanceof TypeDeclaration && ((TypeDeclaration) node).isInterface();
+		return !(node instanceof AnnotationTypeDeclaration) &&
+				!(isInterface && !JavaModelUtil.is18OrHigher(fCUnit.getJavaProject()));
+	}
+
 	public RefactoringStatus checkInitialConditions(ImportRewrite rewriter) {
 		RefactoringStatus result= getStatus();
 		checkExpression(result);
 		if (result.hasFatalError())
 			return result;
+
+		List<ASTNode> validDestinations= new ArrayList<ASTNode>();
+		ASTNode destination= ASTResolving.findParentType(fEnclosingBodyDeclaration.getParent());
+		while (destination != null) {
+			if (isValidDestination(destination)) {
+				validDestinations.add(destination);
+			}
+			destination= ASTResolving.findParentType(destination.getParent());
+		}
+		if (validDestinations.size() == 0) {
+			result.addFatalError(RefactoringCoreMessages.ExtractMethodAnalyzer_no_valid_destination_type);
+			return result;
+		}
 
 		fReturnKind= UNDEFINED;
 		fMaxVariableId= LocalVariableIndex.perform(fEnclosingBodyDeclaration);
@@ -279,7 +305,12 @@ import org.eclipse.jdt.internal.ui.viewsupport.BindingLabelProvider;
 				}
 				break;
 			case RETURN_STATEMENT_VALUE:
-				if (fEnclosingBodyDeclaration.getNodeType() == ASTNode.METHOD_DECLARATION) {
+				LambdaExpression enclosingLambdaExpr= ASTResolving.findEnclosingLambdaExpression(getFirstSelectedNode());
+				if (enclosingLambdaExpr != null) {
+					fReturnType= ASTNodeFactory.newReturnType(enclosingLambdaExpr, ast, rewriter, null);
+					IMethodBinding methodBinding= enclosingLambdaExpr.resolveMethodBinding();
+					fReturnTypeBinding= methodBinding != null ? methodBinding.getReturnType() : null;
+				} else if (fEnclosingBodyDeclaration.getNodeType() == ASTNode.METHOD_DECLARATION) {
 					fReturnType= ((MethodDeclaration) fEnclosingBodyDeclaration).getReturnType2();
 					fReturnTypeBinding= fReturnType != null ? fReturnType.resolveBinding() : null;
 				}
@@ -318,7 +349,13 @@ import org.eclipse.jdt.internal.ui.viewsupport.BindingLabelProvider;
 		ITypeBinding[] arguments= getArgumentTypes();
 		ITypeBinding type= ASTNodes.getEnclosingType(destination);
 		status.merge(Checks.checkMethodInType(type, methodName, arguments));
-		status.merge(Checks.checkMethodInHierarchy(type.getSuperclass(), methodName, null, arguments));
+		ITypeBinding superClass= type.getSuperclass();
+		if (superClass != null) {
+			status.merge(Checks.checkMethodInHierarchy(superClass, methodName, null, arguments));
+		}
+		for (ITypeBinding superInterface : type.getInterfaces()) {
+			status.merge(Checks.checkMethodInHierarchy(superInterface, methodName, null, arguments));
+		}
 	}
 
 	private ITypeBinding[] getArgumentTypes() {
@@ -455,10 +492,19 @@ import org.eclipse.jdt.internal.ui.viewsupport.BindingLabelProvider;
 	}
 
 	private boolean isVoidMethod() {
-		// if we have an initializer
-		if (fEnclosingMethodBinding == null)
-			return true;
-		ITypeBinding binding= fEnclosingMethodBinding.getReturnType();
+		ITypeBinding binding= null;
+		LambdaExpression enclosingLambdaExpr= ASTResolving.findEnclosingLambdaExpression(getFirstSelectedNode());
+		if (enclosingLambdaExpr != null) {
+			IMethodBinding methodBinding= enclosingLambdaExpr.resolveMethodBinding();
+			if (methodBinding != null) {
+				binding= methodBinding.getReturnType();
+			}
+		} else {
+			// if we have an initializer
+			if (fEnclosingMethodBinding == null)
+				return true;
+			binding= fEnclosingMethodBinding.getReturnType();
+		}
 		if (fEnclosingBodyDeclaration.getAST().resolveWellKnownType("void").equals(binding)) //$NON-NLS-1$
 			return true;
 		return false;
@@ -474,14 +520,29 @@ import org.eclipse.jdt.internal.ui.viewsupport.BindingLabelProvider;
 			fIsLastStatementSelected= false;
 		} else {
 			Block body= null;
-			if (fEnclosingBodyDeclaration instanceof MethodDeclaration) {
-				body= ((MethodDeclaration) fEnclosingBodyDeclaration).getBody();
-			} else if (fEnclosingBodyDeclaration instanceof Initializer) {
-				body= ((Initializer) fEnclosingBodyDeclaration).getBody();
+			LambdaExpression enclosingLambdaExpr= ASTResolving.findEnclosingLambdaExpression(getFirstSelectedNode());
+			if (enclosingLambdaExpr != null) {
+				ASTNode lambdaBody= enclosingLambdaExpr.getBody();
+				if (lambdaBody instanceof Block) {
+					body= (Block) lambdaBody;
+				} else {
+					fIsLastStatementSelected= true;
+					return;
+				}
+			} else {
+				if (fEnclosingBodyDeclaration instanceof MethodDeclaration) {
+					body= ((MethodDeclaration) fEnclosingBodyDeclaration).getBody();
+				} else if (fEnclosingBodyDeclaration instanceof Initializer) {
+					body= ((Initializer) fEnclosingBodyDeclaration).getBody();
+				}
 			}
 			if (body != null) {
 				List<Statement> statements= body.statements();
-				fIsLastStatementSelected= nodes[nodes.length - 1] == statements.get(statements.size() - 1);
+				if (statements.size() > 0) {
+					fIsLastStatementSelected= nodes[nodes.length - 1] == statements.get(statements.size() - 1);
+				} else {
+					fIsLastStatementSelected= true;
+				}
 			}
 		}
 	}
@@ -698,7 +759,7 @@ import org.eclipse.jdt.internal.ui.viewsupport.BindingLabelProvider;
 						break superCall;
 					}
 				}
-				status.addFatalError(RefactoringCoreMessages.ExtractMethodAnalyzer_only_method_body);
+				status.addFatalError(RefactoringCoreMessages.ExtractMethodAnalyzer_invalid_selection);
 				break superCall;
 			}
 			fEnclosingBodyDeclaration= (BodyDeclaration)ASTNodes.getParent(getFirstSelectedNode(), BodyDeclaration.class);
@@ -706,7 +767,7 @@ import org.eclipse.jdt.internal.ui.viewsupport.BindingLabelProvider;
 					(fEnclosingBodyDeclaration.getNodeType() != ASTNode.METHOD_DECLARATION &&
 					 fEnclosingBodyDeclaration.getNodeType() != ASTNode.FIELD_DECLARATION &&
 					 fEnclosingBodyDeclaration.getNodeType() != ASTNode.INITIALIZER)) {
-				status.addFatalError(RefactoringCoreMessages.ExtractMethodAnalyzer_only_method_body);
+				status.addFatalError(RefactoringCoreMessages.ExtractMethodAnalyzer_invalid_selection);
 				break superCall;
 			} else if (ASTNodes.getEnclosingType(fEnclosingBodyDeclaration) == null) {
 				status.addFatalError(RefactoringCoreMessages.ExtractMethodAnalyzer_compile_errors_no_parent_binding);
@@ -792,6 +853,43 @@ import org.eclipse.jdt.internal.ui.viewsupport.BindingLabelProvider;
 	}
 
 	@Override
+	public boolean visit(LambdaExpression node) {
+		Selection selection= getSelection();
+		int selectionStart= selection.getOffset();
+		int selectionExclusiveEnd= selection.getExclusiveEnd();
+		int lambdaStart= node.getStartPosition();
+		int lambdaExclusiveEnd= lambdaStart + node.getLength();
+		ASTNode body= node.getBody();
+		int bodyStart= body.getStartPosition();
+		int bodyExclusiveEnd= bodyStart + body.getLength();
+
+		boolean isValidSelection= false;
+		if ((body instanceof Block) && (bodyStart < selectionStart && selectionExclusiveEnd <= bodyExclusiveEnd)) {
+			// if selection is inside lambda body's block
+			isValidSelection= true;
+		} else if (body instanceof Expression) {
+			try {
+				TokenScanner scanner= new TokenScanner(fCUnit);
+				int arrowExclusiveEnd= scanner.getTokenEndOffset(ITerminalSymbols.TokenNameARROW, lambdaStart);
+				if (selectionStart >= arrowExclusiveEnd) {
+					isValidSelection= true;
+				}
+			} catch (CoreException e) {
+				// ignore
+			}
+		}
+		if (selectionStart <= lambdaStart && selectionExclusiveEnd >= lambdaExclusiveEnd) {
+			// if selection covers the lambda node
+			isValidSelection= true;
+		}
+
+		if (!isValidSelection) {
+			return false;
+		}
+		return super.visit(node);
+	}
+
+	@Override
 	public boolean visit(MethodDeclaration node) {
 		Block body= node.getBody();
 		if (body == null)
@@ -827,10 +925,22 @@ import org.eclipse.jdt.internal.ui.viewsupport.BindingLabelProvider;
 	public boolean visit(VariableDeclarationFragment node) {
 		boolean result= super.visit(node);
 		if (isFirstSelectedNode(node)) {
-			invalidSelection(RefactoringCoreMessages.ExtractMethodAnalyzer_cannot_extract_variable_declaration_fragment, JavaStatusContext.create(fCUnit, node));
+			if (node.getParent() instanceof FieldDeclaration) {
+				invalidSelection(RefactoringCoreMessages.ExtractMethodAnalyzer_cannot_extract_variable_declaration_fragment_from_field, JavaStatusContext.create(fCUnit, node));
+			} else {
+				invalidSelection(RefactoringCoreMessages.ExtractMethodAnalyzer_cannot_extract_variable_declaration_fragment, JavaStatusContext.create(fCUnit, node));
+			}
 			return false;
 		}
 		return result;
+	}
+
+	@Override
+	public void endVisit(FieldDeclaration node) {
+		if (contains(getSelectedNodes(), node.fragments())) {
+			invalidSelection(RefactoringCoreMessages.ExtractMethodAnalyzer_cannot_extract_variable_declaration_fragment_from_field, JavaStatusContext.create(fCUnit, node));
+		}
+		super.endVisit(node);
 	}
 
 	@Override

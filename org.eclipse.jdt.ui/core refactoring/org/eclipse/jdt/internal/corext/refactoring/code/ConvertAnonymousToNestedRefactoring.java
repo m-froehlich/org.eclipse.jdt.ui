@@ -790,7 +790,6 @@ public class ConvertAnonymousToNestedRefactoring extends Refactoring {
 
 		for (int i= 0; i < varBindings.length; i++) {
 			VariableDeclarationFragment fragment= ast.newVariableDeclarationFragment();
-			fragment.setExtraDimensions(0);
 			fragment.setInitializer(null);
 			fragment.setName(ast.newSimpleName(fieldNames[i]));
 			FieldDeclaration field= ast.newFieldDeclaration(fragment);
@@ -869,7 +868,6 @@ public class ConvertAnonymousToNestedRefactoring extends Refactoring {
 
 		MethodDeclaration newConstructor= ast.newMethodDeclaration();
 		newConstructor.setConstructor(true);
-		newConstructor.setExtraDimensions(0);
 		newConstructor.setJavadoc(null);
 		newConstructor.modifiers().addAll(ASTNodeFactory.newModifiers(ast, fVisibility));
 		newConstructor.setName(ast.newSimpleName(fClassName));
@@ -940,7 +938,7 @@ public class ConvertAnonymousToNestedRefactoring extends Refactoring {
 			}
 		}
 
-		addExceptionsToNewConstructor(newConstructor);
+		addExceptionsToNewConstructor(newConstructor, importRewrite);
 
 		if (doAddComments()) {
 			try {
@@ -1041,14 +1039,14 @@ public class ConvertAnonymousToNestedRefactoring extends Refactoring {
         return true;
     }
 
-    private void addExceptionsToNewConstructor(MethodDeclaration newConstructor) {
+	private void addExceptionsToNewConstructor(MethodDeclaration newConstructor, ImportRewrite importRewrite) {
         IMethodBinding constructorBinding= getSuperConstructorBinding();
         if (constructorBinding == null)
             return;
         ITypeBinding[] exceptions= constructorBinding.getExceptionTypes();
         for (int i= 0; i < exceptions.length; i++) {
-            Name exceptionTypeName= fAnonymousInnerClassNode.getAST().newName(Bindings.getNameComponents(exceptions[i]));
-            newConstructor.thrownExceptions().add(exceptionTypeName);
+			Type exceptionType= importRewrite.addImport(exceptions[i], fAnonymousInnerClassNode.getAST());
+			newConstructor.thrownExceptionTypes().add(exceptionType);
         }
     }
 

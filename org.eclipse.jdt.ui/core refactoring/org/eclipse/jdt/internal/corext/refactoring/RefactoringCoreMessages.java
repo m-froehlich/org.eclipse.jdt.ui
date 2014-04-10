@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -556,13 +556,17 @@ public final class RefactoringCoreMessages extends NLS {
 
 	public static String ExtractMethodAnalyzer_cannot_extract_variable_declaration_fragment;
 
+	public static String ExtractMethodAnalyzer_cannot_extract_variable_declaration_fragment_from_field;
+
 	public static String ExtractMethodAnalyzer_compile_errors;
 
 	public static String ExtractMethodAnalyzer_compile_errors_no_parent_binding;
 
 	public static String ExtractMethodAnalyzer_leftHandSideOfAssignment;
 
-	public static String ExtractMethodAnalyzer_only_method_body;
+	public static String ExtractMethodAnalyzer_no_valid_destination_type;
+
+	public static String ExtractMethodAnalyzer_invalid_selection;
 
 	public static String ExtractMethodAnalyzer_parent_mismatch;
 
@@ -1326,6 +1330,8 @@ public final class RefactoringCoreMessages extends NLS {
 
 	public static String MoveMembersRefactoring_inside;
 
+	public static String MoveMembersRefactoring_member_will_be_public;
+
 	public static String MoveMembersRefactoring_move_members;
 
 	public static String MoveMembersRefactoring_Move_Members;
@@ -1348,6 +1354,8 @@ public final class RefactoringCoreMessages extends NLS {
 
 	public static String MoveMembersRefactoring_only_public_static;
 
+	public static String MoveMembersRefactoring_only_public_static_18;
+	
 	public static String MoveMembersRefactoring_read_only;
 
 	public static String MoveMembersRefactoring_referenceUpdate;
@@ -1411,6 +1419,8 @@ public final class RefactoringCoreMessages extends NLS {
 	public static String PromoteTempToFieldRefactoring_initialize_declaration;
 
 	public static String PromoteTempToFieldRefactoring_initialize_method;
+
+	public static String PromoteTempToFieldRefactoring_interface_methods;
 
 	public static String PromoteTempToFieldRefactoring_method_parameters;
 
@@ -1809,6 +1819,8 @@ public final class RefactoringCoreMessages extends NLS {
 	public static String RenameTempRefactoring_must_select_local;
 
 	public static String RenameTempRefactoring_only_in_methods_and_initializers;
+
+	public static String RenameTempRefactoring_only_in_methods_initializers_and_lambda;
 
 	public static String RenameTempRefactoring_rename;
 
@@ -2385,6 +2397,8 @@ public final class RefactoringCoreMessages extends NLS {
 	public static String UseSuperTypeProcessor_refactored_element_pattern;
 
 	public static String UseSupertypeWherePossibleRefactoring_name;
+
+	public static String ChangeSignatureRefactoring_lambda_expression;
 
 	static {
 		NLS.initializeMessages(BUNDLE_NAME, RefactoringCoreMessages.class);

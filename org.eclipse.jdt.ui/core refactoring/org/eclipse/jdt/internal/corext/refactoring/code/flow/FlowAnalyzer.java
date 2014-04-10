@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2011 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -60,11 +60,13 @@ import org.eclipse.jdt.core.dom.Initializer;
 import org.eclipse.jdt.core.dom.InstanceofExpression;
 import org.eclipse.jdt.core.dom.Javadoc;
 import org.eclipse.jdt.core.dom.LabeledStatement;
+import org.eclipse.jdt.core.dom.LambdaExpression;
 import org.eclipse.jdt.core.dom.MarkerAnnotation;
 import org.eclipse.jdt.core.dom.MemberValuePair;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Name;
+import org.eclipse.jdt.core.dom.NameQualifiedType;
 import org.eclipse.jdt.core.dom.NormalAnnotation;
 import org.eclipse.jdt.core.dom.NullLiteral;
 import org.eclipse.jdt.core.dom.NumberLiteral;
@@ -683,6 +685,16 @@ abstract class FlowAnalyzer extends GenericVisitor {
 	}
 
 	@Override
+	public void endVisit(LambdaExpression node) {
+		if (skipNode(node))
+			return;
+		GenericSequentialFlowInfo info= createSequential(node);
+		process(info, node.parameters());
+		process(info, node.getBody());
+		info.setNoReturn();
+	}
+
+	@Override
 	public void endVisit(MarkerAnnotation node) {
 		// nothing to do for marker annotations;
 	}
@@ -711,13 +723,20 @@ abstract class FlowAnalyzer extends GenericVisitor {
 			return;
 		GenericSequentialFlowInfo info= processSequential(node, node.getReturnType2());
 		process(info, node.parameters());
-		process(info, node.thrownExceptions());
+		process(info, node.thrownExceptionTypes());
 		process(info, node.getBody());
 	}
 
 	@Override
 	public void endVisit(MethodInvocation node) {
 		endVisitMethodInvocation(node, node.getExpression(), node.arguments(), getMethodBinding(node.getName()));
+	}
+
+	@Override
+	public void endVisit(NameQualifiedType node) {
+		if (skipNode(node))
+			return;
+		processSequential(node, node.getQualifier(), node.getName());
 	}
 
 	@Override

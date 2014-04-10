@@ -14,13 +14,18 @@ package org.eclipse.jdt.internal.corext.util;
 import org.eclipse.core.runtime.Assert;
 
 import org.eclipse.jdt.core.Flags;
+import org.eclipse.jdt.core.IField;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IMember;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.AnnotationTypeDeclaration;
 import org.eclipse.jdt.core.dom.BodyDeclaration;
+import org.eclipse.jdt.core.dom.EnumConstantDeclaration;
+import org.eclipse.jdt.core.dom.EnumDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -54,16 +59,59 @@ public class JdtFlags {
 
 	public static final int VISIBILITY_CODE_INVALID= 	-1;
 
+	public static boolean isDefaultMethod(IMethodBinding method) {
+		int modifiers= method.getModifiers();
+		// https://bugs.eclipse.org/bugs/show_bug.cgi?id=405517#c7
+		ITypeBinding declaringClass= method.getDeclaringClass();
+		if (declaringClass.isInterface()) {
+			return !Modifier.isAbstract(modifiers) && !Modifier.isStatic(modifiers);
+		}
+		return false;
+	}
+
+	public static boolean isDefaultMethod(IMethod method) throws JavaModelException {
+		return Flags.isDefaultMethod(method.getFlags());
+	}
+
 	public static boolean isAbstract(IMember member) throws JavaModelException{
-		if (isInterfaceOrAnnotationMethod(member))
-			return true;
-		return Flags.isAbstract(member.getFlags());
+		int flags= member.getFlags();
+		if (!member.isBinary() && isInterfaceOrAnnotationMethod(member)) {
+			return !Flags.isStatic(flags) && !Flags.isDefaultMethod(flags);
+		}
+		return Flags.isAbstract(flags);
 	}
 
 	public static boolean isAbstract(IMethodBinding member) {
-		if (isInterfaceOrAnnotationMember(member))
-			return true;
 		return Modifier.isAbstract(member.getModifiers());
+	}
+
+	public static boolean isStatic(BodyDeclaration bodyDeclaration) {
+		if (isNestedInterfaceOrAnnotation(bodyDeclaration))
+			return true;
+		int nodeType= bodyDeclaration.getNodeType();
+		if (!(nodeType == ASTNode.METHOD_DECLARATION || nodeType == ASTNode.ANNOTATION_TYPE_MEMBER_DECLARATION) &&
+				isInterfaceOrAnnotationMember(bodyDeclaration))
+			return true;
+		if (bodyDeclaration instanceof EnumConstantDeclaration)
+			return true;
+		if (bodyDeclaration instanceof EnumDeclaration && bodyDeclaration.getParent() instanceof AbstractTypeDeclaration)
+			return true;
+		return Modifier.isStatic(bodyDeclaration.getModifiers());
+	}
+	
+	public static boolean isStatic(IMember member) throws JavaModelException {
+		if (isNestedInterfaceOrAnnotation(member))
+			return true;
+		if (member.getElementType() != IJavaElement.METHOD
+				&& isInterfaceOrAnnotationMember(member))
+			return true;
+		if (isEnum(member) && (member.getElementType() == IJavaElement.FIELD || member.getDeclaringType() != null))
+			return true;
+		return Flags.isStatic(member.getFlags());
+	}
+
+	public static boolean isStatic(IMethodBinding methodBinding){
+		return Modifier.isStatic(methodBinding.getModifiers());
 	}
 
 	public static boolean isDeprecated(IMember member) throws JavaModelException{
@@ -75,9 +123,22 @@ public class JdtFlags {
 			return true;
 		if (isAnonymousType(member))
 			return true;
-		if (isEnumConstant(member))
+		if (isEnumConstant(member) || isEnumTypeFinal(member))
 			return true;
 		return Flags.isFinal(member.getFlags());
+	}
+
+	private static boolean isEnumTypeFinal(IMember member) throws JavaModelException {
+		if (!(isEnum(member) && member.getElementType() == IJavaElement.TYPE))
+			return false;
+		// An enum type is implicitly final unless it contains at least one enum constant that has a class body.
+		IJavaElement[] children= member.getChildren();
+		for (IJavaElement child : children) {
+			if (isEnumConstant((IMember) child) && ((IField) child).getChildren().length != 0) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	public static boolean isNative(IMember member) throws JavaModelException{
@@ -141,28 +202,10 @@ public class JdtFlags {
 		return Modifier.isPublic(bodyDeclaration.getModifiers());
 	}
 
-	public static boolean isStatic(IMember member) throws JavaModelException{
-		if (isNestedInterfaceOrAnnotation(member))
-			return true;
-		if (member.getElementType() != IJavaElement.METHOD && isInterfaceOrAnnotationMember(member))
-			return true;
-		if (isEnumConstant(member))
-			return true;
-		return Flags.isStatic(member.getFlags());
-	}
-
-	public static boolean isStatic(IMethodBinding methodBinding){
-		return Modifier.isStatic(methodBinding.getModifiers());
-	}
-
 	public static boolean isStatic(IVariableBinding variableBinding){
 		if (isInterfaceOrAnnotationMember(variableBinding))
 			return true;
 		return Modifier.isStatic(variableBinding.getModifiers());
-	}
-
-	public static boolean isStrictfp(IMember member) throws JavaModelException{
-		return Flags.isStrictfp(member.getFlags());
 	}
 
 	public static boolean isSynchronized(IMember member) throws JavaModelException{
@@ -218,12 +261,19 @@ public class JdtFlags {
 	}
 
 	private static boolean isInterfaceOrAnnotationMember(BodyDeclaration bodyDeclaration) {
-		boolean isInterface= (bodyDeclaration.getParent() instanceof TypeDeclaration) &&
-				((TypeDeclaration)bodyDeclaration.getParent()).isInterface();
-		boolean isAnnotation= bodyDeclaration.getParent() instanceof AnnotationTypeDeclaration;
-		return 	isInterface || isAnnotation;
+		return isInterfaceOrAnnotation(bodyDeclaration.getParent());
 	}
 
+	private static boolean isInterfaceOrAnnotation(ASTNode node) {
+		boolean isInterface= (node instanceof TypeDeclaration) && ((TypeDeclaration) node).isInterface();
+		boolean isAnnotation= node instanceof AnnotationTypeDeclaration;
+		return isInterface || isAnnotation;
+	}
+
+	private static boolean isNestedInterfaceOrAnnotation(BodyDeclaration bodyDeclaration) {
+		return bodyDeclaration.getParent() instanceof AbstractTypeDeclaration && isInterfaceOrAnnotation(bodyDeclaration);
+	}
+	
 	private static boolean isNestedInterfaceOrAnnotation(IMember member) throws JavaModelException{
 		return member.getElementType() == IJavaElement.TYPE &&
 				member.getDeclaringType() != null &&

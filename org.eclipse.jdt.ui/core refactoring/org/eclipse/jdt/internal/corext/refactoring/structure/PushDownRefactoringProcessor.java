@@ -791,7 +791,7 @@ public final class PushDownRefactoringProcessor extends HierarchyProcessor {
 		IField field= (IField) info.getMember();
 		AST ast= rewrite.getAST();
 		VariableDeclarationFragment newFragment= ast.newVariableDeclarationFragment();
-		newFragment.setExtraDimensions(oldFieldFragment.getExtraDimensions());
+		copyExtraDimensions(oldFieldFragment, newFragment);
 		Expression initializer= oldFieldFragment.getInitializer();
 		if (initializer != null) {
 			Expression newInitializer= null;
@@ -827,7 +827,7 @@ public final class PushDownRefactoringProcessor extends HierarchyProcessor {
 		MethodDeclaration newMethod= ast.newMethodDeclaration();
 		copyBodyOfPushedDownMethod(rewrite, method, oldMethod, newMethod, mapping);
 		newMethod.setConstructor(oldMethod.isConstructor());
-		newMethod.setExtraDimensions(oldMethod.getExtraDimensions());
+		copyExtraDimensions(oldMethod, newMethod);
 		if (info.copyJavadocToCopiesInSubclasses())
 			copyJavadocNode(rewrite, oldMethod, newMethod);
 		final IJavaProject project= rewriter.getCu().getJavaProject();

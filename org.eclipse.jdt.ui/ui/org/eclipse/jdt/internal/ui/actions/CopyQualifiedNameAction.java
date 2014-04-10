@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2011 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -65,12 +65,13 @@ import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.NodeFinder;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
-import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.StructuralPropertyDescriptor;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.TypeParameter;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
+
+import org.eclipse.jdt.internal.corext.dom.ASTNodes;
 
 import org.eclipse.jdt.ui.JavaElementLabels;
 import org.eclipse.jdt.ui.JavaUI;
@@ -360,12 +361,10 @@ public class CopyQualifiedNameAction extends SelectionDispatchAction {
 	 * @since 3.7
 	 */
 	private IBinding getConstructorBindingIfAvailable(Name nameNode) {
-		StructuralPropertyDescriptor loc= nameNode.getLocationInParent();
-		if (loc == SimpleType.NAME_PROPERTY) {
-			ASTNode parent= nameNode.getParent();
-			loc= parent.getLocationInParent();
-			if (loc == ClassInstanceCreation.TYPE_PROPERTY)
-				return ((ClassInstanceCreation)parent.getParent()).resolveConstructorBinding();
+		ASTNode type= ASTNodes.getNormalizedNode(nameNode);
+		StructuralPropertyDescriptor loc= type.getLocationInParent();
+		if (loc == ClassInstanceCreation.TYPE_PROPERTY) {
+			return ((ClassInstanceCreation) type.getParent()).resolveConstructorBinding();
 		}
 		return null;
 	}

@@ -948,8 +948,8 @@ public class IntroduceIndirectionRefactoring extends Refactoring {
 	private void copyExceptions(MethodDeclaration intermediary, CompilationUnitRewrite imRewrite) {
 		ITypeBinding[] exceptionTypes= fTargetMethodBinding.getExceptionTypes();
 		for (int i= 0; i < exceptionTypes.length; i++) {
-			final String qualifiedName= imRewrite.getImportRewrite().addImport(exceptionTypes[i]);
-			intermediary.thrownExceptions().add(ASTNodeFactory.newName(imRewrite.getAST(), qualifiedName));
+			Type exceptionType= imRewrite.getImportRewrite().addImport(exceptionTypes[i], imRewrite.getAST());
+			intermediary.thrownExceptionTypes().add(exceptionType);
 		}
 	}
 

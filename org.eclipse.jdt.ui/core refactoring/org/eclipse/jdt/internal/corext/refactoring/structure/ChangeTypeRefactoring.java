@@ -930,7 +930,7 @@ public class ChangeTypeRefactoring extends Refactoring {
 		} else if (parent.getNodeType() == ASTNode.METHOD_DECLARATION &&
 				grandParent.getNodeType() == ASTNode.TYPE_DECLARATION) {
 			MethodDeclaration methodDeclaration= (MethodDeclaration)parent;
-			if (methodDeclaration.getName().equals(simpleName) || methodDeclaration.thrownExceptions().contains(simpleName)){
+			if (methodDeclaration.getName().equals(simpleName)) {
 				return RefactoringCoreMessages.ChangeTypeRefactoring_notSupportedOnNodeType;
 			}
 			fMethodBinding= ((MethodDeclaration)parent).resolveBinding();
