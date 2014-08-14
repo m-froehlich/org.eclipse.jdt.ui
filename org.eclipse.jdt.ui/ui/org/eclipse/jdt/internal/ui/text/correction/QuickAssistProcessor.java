@@ -12,6 +12,7 @@
  *     Chris West (Faux) <eclipse@goeswhere.com> - [quick assist] "Use 'StringBuilder' for string concatenation" could fix existing misuses - https://bugs.eclipse.org/bugs/show_bug.cgi?id=282755
  *     Lukas Hanke <hanke@yatta.de> - Bug 241696 [quick fix] quickfix to iterate over a collection - https://bugs.eclipse.org/bugs/show_bug.cgi?id=241696
  *     Eugene Lucash <e.lucash@gmail.com> - [quick assist] Add key binding for Extract method Quick Assist - https://bugs.eclipse.org/424166
+ *     Lukas Hanke <hanke@yatta.de> - Bug 430818 [1.8][quick fix] Quick fix for "for loop" is not shown for bare local variable/argument/field - https://bugs.eclipse.org/bugs/show_bug.cgi?id=430818
  *******************************************************************************/
 package org.eclipse.jdt.internal.ui.text.correction;
 
@@ -62,11 +63,11 @@ import org.eclipse.jdt.core.dom.ChildListPropertyDescriptor;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.ConditionalExpression;
+import org.eclipse.jdt.core.dom.Dimension;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
-import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
@@ -89,6 +90,7 @@ import org.eclipse.jdt.core.dom.PostfixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression.Operator;
 import org.eclipse.jdt.core.dom.PrimitiveType;
+import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SimpleType;
@@ -123,6 +125,7 @@ import org.eclipse.jdt.internal.corext.dom.Bindings;
 import org.eclipse.jdt.internal.corext.dom.DimensionRewrite;
 import org.eclipse.jdt.internal.corext.dom.LinkedNodeFinder;
 import org.eclipse.jdt.internal.corext.dom.ModifierRewrite;
+import org.eclipse.jdt.internal.corext.dom.ScopeAnalyzer;
 import org.eclipse.jdt.internal.corext.dom.Selection;
 import org.eclipse.jdt.internal.corext.dom.SelectionAnalyzer;
 import org.eclipse.jdt.internal.corext.dom.TokenScanner;
@@ -132,6 +135,7 @@ import org.eclipse.jdt.internal.corext.fix.ConvertLoopFix;
 import org.eclipse.jdt.internal.corext.fix.IProposableFix;
 import org.eclipse.jdt.internal.corext.fix.LambdaExpressionsFix;
 import org.eclipse.jdt.internal.corext.fix.LinkedProposalModel;
+import org.eclipse.jdt.internal.corext.fix.TypeParametersFix;
 import org.eclipse.jdt.internal.corext.fix.VariableDeclarationFix;
 import org.eclipse.jdt.internal.corext.refactoring.RefactoringAvailabilityTester;
 import org.eclipse.jdt.internal.corext.refactoring.code.ConvertAnonymousToNestedRefactoring;
@@ -160,6 +164,7 @@ import org.eclipse.jdt.internal.ui.fix.ControlStatementsCleanUp;
 import org.eclipse.jdt.internal.ui.fix.ConvertLoopCleanUp;
 import org.eclipse.jdt.internal.ui.fix.ExpressionsCleanUp;
 import org.eclipse.jdt.internal.ui.fix.LambdaExpressionsCleanUp;
+import org.eclipse.jdt.internal.ui.fix.TypeParametersCleanUp;
 import org.eclipse.jdt.internal.ui.fix.VariableDeclarationCleanUp;
 import org.eclipse.jdt.internal.ui.javaeditor.JavaEditor;
 import org.eclipse.jdt.internal.ui.text.correction.proposals.AssignToVariableAssistProposal;
@@ -523,8 +528,10 @@ public class QuickAssistProcessor implements IQuickAssistProcessor {
 	}
 
 	private static boolean getConvertAnonymousClassCreationsToLambdaProposals(IInvocationContext context, ASTNode covering, Collection<ICommandAccess> resultingCollections) {
-		while (covering.getLocationInParent() == MethodDeclaration.NAME_PROPERTY
-				|| covering.getLocationInParent() == MethodDeclaration.BODY_PROPERTY
+		while (covering instanceof Name
+				|| covering instanceof Type
+				|| covering instanceof Dimension
+				|| covering.getParent() instanceof MethodDeclaration
 				|| covering.getLocationInParent() == AnonymousClassDeclaration.BODY_DECLARATIONS_PROPERTY) {
 			covering= covering.getParent();
 		}
@@ -699,8 +706,11 @@ public class QuickAssistProcessor implements IQuickAssistProcessor {
 	}
 
 	public static boolean getInferDiamondArgumentsProposal(IInvocationContext context, ASTNode node, IProblemLocation[] locations, Collection<ICommandAccess> resultingCollections) {
+		// don't add if already added as quick fix
+		if (containsMatchingProblem(locations, IProblem.DiamondNotBelow17))
+			return false;
 		ParameterizedType createdType= null;
-		
+
 		if (node instanceof Name) {
 			Name name= ASTNodes.getTopMostName((Name) node);
 			if (name.getLocationInParent() == SimpleType.NAME_PROPERTY ||
@@ -725,48 +735,17 @@ public class QuickAssistProcessor implements IQuickAssistProcessor {
 				createdType= (ParameterizedType) type;
 			}
 		}
-		
-		if (createdType == null || createdType.typeArguments().size() != 0) {
-			return false;
-		}
-		
-		ITypeBinding binding= createdType.resolveBinding();
-		if (binding == null) {
-			return false;
-		}
-		
-		ITypeBinding[] typeArguments= binding.getTypeArguments();
-		if (typeArguments.length == 0) {
-			return false;
-		}
-		
-		if (resultingCollections == null) {
-			return true;
-		}
 
-		// don't add if already added as quick fix
-		if (containsMatchingProblem(locations, IProblem.DiamondNotBelow17))
-			return false;
-		
-		AST ast= node.getAST();
-		ASTRewrite rewrite= ASTRewrite.create(ast);
-		ImportRewrite importRewrite= StubUtility.createImportRewrite(context.getASTRoot(), true);
-		ContextSensitiveImportRewriteContext importContext= new ContextSensitiveImportRewriteContext(context.getASTRoot(), createdType.getStartPosition(), importRewrite);
-
-		String label= CorrectionMessages.QuickAssistProcessor_infer_diamond_description;
-		Image image= JavaPluginImages.get(JavaPluginImages.IMG_CORRECTION_CHANGE);
-		int relevance= locations == null ? IProposalRelevance.INSERT_INFERRED_TYPE_ARGUMENTS : IProposalRelevance.INSERT_INFERRED_TYPE_ARGUMENTS_ERROR; // if error -> higher than ReorgCorrectionsSubProcessor.getNeedHigherComplianceProposals()
-		LinkedCorrectionProposal proposal= new LinkedCorrectionProposal(label, context.getCompilationUnit(), rewrite, relevance, image);
-
-		ListRewrite argumentsRewrite= rewrite.getListRewrite(createdType, ParameterizedType.TYPE_ARGUMENTS_PROPERTY);
-		for (int i= 0; i < typeArguments.length; i++) {
-			ITypeBinding typeArgument= typeArguments[i];
-			Type argumentNode= importRewrite.addImport(typeArgument, ast, importContext);
-			argumentsRewrite.insertLast(argumentNode, null);
-			proposal.addLinkedPosition(rewrite.track(argumentNode), true, "arg" + i); //$NON-NLS-1$
+		IProposableFix fix= TypeParametersFix.createInsertInferredTypeArgumentsFix(context.getASTRoot(), createdType);
+		if (fix != null && resultingCollections != null) {
+			Image image= JavaPluginImages.get(JavaPluginImages.IMG_CORRECTION_CHANGE);
+			int relevance= locations == null ? IProposalRelevance.INSERT_INFERRED_TYPE_ARGUMENTS : IProposalRelevance.INSERT_INFERRED_TYPE_ARGUMENTS_ERROR; // if error -> higher than ReorgCorrectionsSubProcessor.getNeedHigherComplianceProposals()
+			Map<String, String> options= new HashMap<String, String>();
+			options.put(CleanUpConstants.USE_TYPE_ARGUMENTS, CleanUpOptions.TRUE);
+			options.put(CleanUpConstants.INSERT_INFERRED_TYPE_ARGUMENTS, CleanUpOptions.TRUE);
+			FixCorrectionProposal proposal= new FixCorrectionProposal(fix, new TypeParametersCleanUp(options), relevance, image, context);
+			resultingCollections.add(proposal);
 		}
-
-		resultingCollections.add(proposal);
 		return true;
 	}
 
@@ -2593,9 +2572,8 @@ public class QuickAssistProcessor implements IQuickAssistProcessor {
 				VariableDeclarationStatement varDeclaration= ast.newVariableDeclarationStatement(varFragment);
 				Type varType;
 				if (initializerIsArray) {
-					ArrayType varArrayType= (ArrayType) DimensionRewrite.copyTypeAndAddDimensions(parameter.getType(), parameter.extraDimensions(), rewrite);
-					varArrayType.dimensions().add(0, ast.newDimension());
-					varType= varArrayType;
+					Type copiedType= DimensionRewrite.copyTypeAndAddDimensions(parameter.getType(), parameter.extraDimensions(), rewrite);
+					varType= ASTNodeFactory.newArrayType(copiedType);
 				} else {
 					ImportRewrite imports= proposal.createImportRewrite(context.getASTRoot());
 					ImportRewriteContext importRewriteContext= new ContextSensitiveImportRewriteContext(node, imports);
@@ -2765,26 +2743,31 @@ public class QuickAssistProcessor implements IQuickAssistProcessor {
 	}
 
 	public static boolean getGenerateForLoopProposals(IInvocationContext context, ASTNode coveringNode, IProblemLocation[] locations, Collection<ICommandAccess> resultingCollections) {
+//		if (containsMatchingProblem(locations, IProblem.ParsingErrorInsertToComplete))
+//			return false;
+
 		Statement statement= ASTResolving.findParentStatement(coveringNode);
-		if (!(statement instanceof ExpressionStatement)) {
-			return false;
-		}
-
-		if (containsMatchingProblem(locations, IProblem.ParsingErrorInsertToComplete))
-			return false;
-
-		Expression expression= ((ExpressionStatement) statement).getExpression();
 		ICompilationUnit cu= context.getCompilationUnit();
 		ITypeBinding expressionType= null;
+		Expression expression= null;
+		int relevanceBoost= 0;
 
-		if (expression instanceof MethodInvocation
-				|| expression instanceof SimpleName
-				|| expression instanceof FieldAccess) {
-			expressionType= expression.resolveTypeBinding();
-		} else if (expression instanceof Assignment
-				&& ((Assignment) expression).getRightHandSide().resolveTypeBinding() == null
-				&& ((Assignment) expression).getLeftHandSide().resolveTypeBinding() != null) {
-			expressionType= ((Assignment) expression).getLeftHandSide().resolveTypeBinding();
+		if (statement instanceof ExpressionStatement) {
+			expressionType= extractExpressionType((ExpressionStatement) statement);
+			expression= ((ExpressionStatement) statement).getExpression();
+			
+		} else if (statement instanceof VariableDeclarationStatement && ((VariableDeclarationStatement) statement).fragments().size() == 1
+				&& ((VariableDeclarationStatement) statement).fragments().get(0).toString().equals("$missing$")) { //$NON-NLS-1$
+			// variable name is resolved to the type in a variable declaration statement, see https://bugs.eclipse.org/430336
+			Type type= ((VariableDeclarationStatement) statement).getType();
+			if (type instanceof SimpleType) {
+				SimpleType simpleType= (SimpleType) type;
+				expressionType= extractExpressionType(simpleType);
+				expression= simpleType.getName();
+				relevanceBoost+= 6; // need to overrule the bad UnresolvedElementsSubProcessor#addNewTypeProposals(..)
+			}
+		} else {
+			return false;
 		}
 
 		if (expressionType == null)
@@ -2793,23 +2776,61 @@ public class QuickAssistProcessor implements IQuickAssistProcessor {
 		if (Bindings.findTypeInHierarchy(expressionType, "java.lang.Iterable") != null) { //$NON-NLS-1$
 			if (resultingCollections == null)
 				return true;
-			resultingCollections.add(new GenerateForLoopAssistProposal(cu, statement, expression, GenerateForLoopAssistProposal.GENERATE_ITERATOR_FOR));
+			GenerateForLoopAssistProposal proposal= new GenerateForLoopAssistProposal(cu, expressionType, statement, expression, GenerateForLoopAssistProposal.GENERATE_ITERATOR_FOR);
+			proposal.setRelevance(proposal.getRelevance() + relevanceBoost);
+			resultingCollections.add(proposal);
 			if (Bindings.findTypeInHierarchy(expressionType, "java.util.List") != null) { //$NON-NLS-1$
-				resultingCollections.add(new GenerateForLoopAssistProposal(cu, statement, expression, GenerateForLoopAssistProposal.GENERATE_ITERATE_LIST));
+				proposal= new GenerateForLoopAssistProposal(cu, expressionType, statement, expression, GenerateForLoopAssistProposal.GENERATE_ITERATE_LIST);
+				proposal.setRelevance(proposal.getRelevance() + relevanceBoost);
+				resultingCollections.add(proposal);
 			}
 		} else if (expressionType.isArray()) {
 			if (resultingCollections == null)
 				return true;
-			resultingCollections.add(new GenerateForLoopAssistProposal(cu, statement, expression, GenerateForLoopAssistProposal.GENERATE_ITERATE_ARRAY));
+			GenerateForLoopAssistProposal proposal= new GenerateForLoopAssistProposal(cu, expressionType, statement, expression, GenerateForLoopAssistProposal.GENERATE_ITERATE_ARRAY);
+			proposal.setRelevance(proposal.getRelevance() + relevanceBoost);
+			resultingCollections.add(proposal);
 		} else {
 			return false;
 		}
 
 		if (JavaModelUtil.is50OrHigher(cu.getJavaProject())) {
-			resultingCollections.add(new GenerateForLoopAssistProposal(cu, statement, expression, GenerateForLoopAssistProposal.GENERATE_FOREACH));
+			GenerateForLoopAssistProposal proposal= new GenerateForLoopAssistProposal(cu, expressionType, statement, expression, GenerateForLoopAssistProposal.GENERATE_FOREACH);
+			proposal.setRelevance(proposal.getRelevance() + relevanceBoost);
+			resultingCollections.add(proposal);
 		}
 
 		return true;
+	}
+
+	private static ITypeBinding extractExpressionType(ExpressionStatement statement) {
+		Expression expression= statement.getExpression();
+		if (expression.getNodeType() == ASTNode.METHOD_INVOCATION
+				|| expression.getNodeType() == ASTNode.FIELD_ACCESS) {
+			return expression.resolveTypeBinding();
+		}
+		return null;
+	}
+
+	private static ITypeBinding extractExpressionType(SimpleType variableIdentifier) {
+		ScopeAnalyzer analyzer= new ScopeAnalyzer((CompilationUnit) variableIdentifier.getRoot());
+		// get the name of the variable to search the type for
+		Name name= null;
+		if (variableIdentifier.getName() instanceof SimpleName) {
+			name= variableIdentifier.getName();
+		} else if (variableIdentifier.getName() instanceof QualifiedName) {
+			name= ((QualifiedName) variableIdentifier.getName()).getName();
+		}
+
+		// analyze variables which are available in the scope at the position of the quick assist invokation
+		IBinding[] declarationsInScope= analyzer.getDeclarationsInScope(name.getStartPosition(), ScopeAnalyzer.VARIABLES);
+		for (int i= 0; i < declarationsInScope.length; i++) {
+			IBinding currentVariable= declarationsInScope[i];
+			if (((IVariableBinding) currentVariable).getName().equals(name.getFullyQualifiedName())) {
+				return ((IVariableBinding) currentVariable).getType();
+			}
+		}
+		return null;
 	}
 
 	private static ForStatement getEnclosingForStatementHeader(ASTNode node) {

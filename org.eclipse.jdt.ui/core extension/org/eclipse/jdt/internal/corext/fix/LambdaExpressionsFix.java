@@ -12,6 +12,8 @@ package org.eclipse.jdt.internal.corext.fix;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 
@@ -22,17 +24,13 @@ import org.eclipse.text.edits.TextEditGroup;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTVisitor;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
-import org.eclipse.jdt.core.dom.ArrayInitializer;
-import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
-import org.eclipse.jdt.core.dom.ConditionalExpression;
-import org.eclipse.jdt.core.dom.ConstructorInvocation;
-import org.eclipse.jdt.core.dom.EnumConstantDeclaration;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.IBinding;
@@ -45,8 +43,6 @@ import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
-import org.eclipse.jdt.core.dom.StructuralPropertyDescriptor;
-import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
 import org.eclipse.jdt.core.dom.SuperFieldAccess;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.ThisExpression;
@@ -61,8 +57,10 @@ import org.eclipse.jdt.internal.corext.codemanipulation.CodeGenerationSettings;
 import org.eclipse.jdt.internal.corext.codemanipulation.ContextSensitiveImportRewriteContext;
 import org.eclipse.jdt.internal.corext.codemanipulation.StubUtility2;
 import org.eclipse.jdt.internal.corext.dom.ASTNodeFactory;
+import org.eclipse.jdt.internal.corext.dom.ASTNodes;
 import org.eclipse.jdt.internal.corext.dom.Bindings;
 import org.eclipse.jdt.internal.corext.dom.HierarchicalASTVisitor;
+import org.eclipse.jdt.internal.corext.dom.LinkedNodeFinder;
 import org.eclipse.jdt.internal.corext.refactoring.structure.CompilationUnitRewrite;
 import org.eclipse.jdt.internal.corext.refactoring.structure.ImportRemover;
 import org.eclipse.jdt.internal.corext.util.JavaModelUtil;
@@ -71,7 +69,6 @@ import org.eclipse.jdt.internal.corext.util.JdtFlags;
 import org.eclipse.jdt.ui.cleanup.ICleanUpFix;
 
 import org.eclipse.jdt.internal.ui.preferences.JavaPreferencesSettings;
-import org.eclipse.jdt.internal.ui.text.correction.ASTResolving;
 
 public class LambdaExpressionsFix extends CompilationUnitRewriteOperationsFix {
 
@@ -204,8 +201,9 @@ public class LambdaExpressionsFix extends CompilationUnitRewriteOperationsFix {
 			ImportRemover importRemover= cuRewrite.getImportRemover();
 			AST ast= rewrite.getAST();
 
-			for (Iterator<ClassInstanceCreation> iterator= fExpressions.iterator(); iterator.hasNext();) {
-				ClassInstanceCreation classInstanceCreation= iterator.next();
+			HashMap<ClassInstanceCreation, HashSet<String>> cicToNewNames= new HashMap<ClassInstanceCreation, HashSet<String>>();
+			for (int i= 0; i < fExpressions.size(); i++) {
+				ClassInstanceCreation classInstanceCreation= fExpressions.get(i);
 				TextEditGroup group= createTextEditGroup(FixMessages.LambdaExpressionsFix_convert_to_lambda_expression, cuRewrite);
 
 				AnonymousClassDeclaration anonymTypeDecl= classInstanceCreation.getAnonymousClassDeclaration();
@@ -215,6 +213,16 @@ public class LambdaExpressionsFix extends CompilationUnitRewriteOperationsFix {
 				if (!(object instanceof MethodDeclaration))
 					continue;
 				MethodDeclaration methodDeclaration= (MethodDeclaration) object;
+				HashSet<String> excludedNames= new HashSet<String>();
+				if (i != 0) {
+					for (ClassInstanceCreation convertedCic : fExpressions.subList(0, i)) {
+						if (ASTNodes.isParent(classInstanceCreation, convertedCic)) {
+							excludedNames.addAll(cicToNewNames.get(convertedCic));
+						}
+					}
+				}
+				HashSet<String> newNames= makeNamesUnique(excludedNames, methodDeclaration, rewrite, group);
+				cicToNewNames.put(classInstanceCreation, new HashSet<String>(newNames));
 				List<SingleVariableDeclaration> methodParameters= methodDeclaration.parameters();
 
 				// use short form with inferred parameter types and without parentheses if possible
@@ -246,11 +254,108 @@ public class LambdaExpressionsFix extends CompilationUnitRewriteOperationsFix {
 //				lambdaBody.accept(new InterfaceAccessQualifier(rewrite, classInstanceCreation.getType().resolveBinding())); //TODO: maybe need a separate ASTRewrite and string placeholder
 				
 				lambdaExpression.setBody(rewrite.createCopyTarget(lambdaBody));
-				rewrite.replace(classInstanceCreation, lambdaExpression, group);
-				
+				Expression replacement= lambdaExpression;
+				if (ASTNodes.isTargetAmbiguous(classInstanceCreation, lambdaParameters.isEmpty())) {
+					CastExpression cast= ast.newCastExpression();
+					cast.setExpression(lambdaExpression);
+					ImportRewrite importRewrite= cuRewrite.getImportRewrite();
+					ImportRewriteContext importRewriteContext= new ContextSensitiveImportRewriteContext(classInstanceCreation, importRewrite);
+					Type castType= importRewrite.addImport(classInstanceCreation.getType().resolveBinding(), ast, importRewriteContext);
+					cast.setType(castType);
+					importRemover.registerAddedImports(castType);
+					replacement= cast;
+				}
+				rewrite.replace(classInstanceCreation, replacement, group);
+
 				importRemover.registerRemovedNode(classInstanceCreation);
 				importRemover.registerRetainedNode(lambdaBody);
 			}
+		}
+
+		private HashSet<String> makeNamesUnique(HashSet<String> excludedNames, MethodDeclaration methodDeclaration, ASTRewrite rewrite, TextEditGroup group) {
+			HashSet<String> newNames= new HashSet<String>();
+			excludedNames.addAll(ASTNodes.getVisibleLocalVariablesInScope(methodDeclaration));
+			List<SimpleName> simpleNamesInMethod= getNamesInMethod(methodDeclaration);
+			List<String> namesInMethod= new ArrayList<String>();
+			for (SimpleName name : simpleNamesInMethod) {
+				namesInMethod.add(name.getIdentifier());
+			}
+
+			for (int i= 0; i < simpleNamesInMethod.size(); i++) {
+				SimpleName name= simpleNamesInMethod.get(i);
+				String identifier= namesInMethod.get(i);
+				HashSet<String> allNamesToExclude= getNamesToExclude(excludedNames, namesInMethod, i);
+				if (allNamesToExclude.contains(identifier)) {
+					String newIdentifier= createName(identifier, allNamesToExclude);
+					excludedNames.add(newIdentifier);
+					newNames.add(newIdentifier);
+					SimpleName[] references= LinkedNodeFinder.findByNode(name.getRoot(), name);
+					for (SimpleName ref : references) {
+						rewrite.set(ref, SimpleName.IDENTIFIER_PROPERTY, newIdentifier, group);
+					}
+				}
+			}
+
+			return newNames;
+		}
+
+		private HashSet<String> getNamesToExclude(HashSet<String> excludedNames, List<String> namesInMethod, int i) {
+			HashSet<String> allNamesToExclude= new HashSet<String>(excludedNames);
+			allNamesToExclude.addAll(namesInMethod.subList(0, i));
+			allNamesToExclude.addAll(namesInMethod.subList(i + 1, namesInMethod.size()));
+			return allNamesToExclude;
+		}
+
+		private List<SimpleName> getNamesInMethod(MethodDeclaration methodDeclaration) {
+			class NamesCollector extends HierarchicalASTVisitor {
+				private int fTypeCounter;
+
+				private List<SimpleName> fNames= new ArrayList<SimpleName>();
+
+				@Override
+				public boolean visit(AbstractTypeDeclaration node) {
+					if (fTypeCounter++ == 0) {
+						fNames.add(node.getName());
+					}
+					return true;
+				}
+
+				@Override
+				public void endVisit(AbstractTypeDeclaration node) {
+					fTypeCounter--;
+				}
+
+				@Override
+				public boolean visit(AnonymousClassDeclaration node) {
+					fTypeCounter++;
+					return true;
+				}
+
+				@Override
+				public void endVisit(AnonymousClassDeclaration node) {
+					fTypeCounter--;
+				}
+
+				@Override
+				public boolean visit(VariableDeclaration node) {
+					if (fTypeCounter == 0)
+						fNames.add(node.getName());
+					return true;
+				}
+			}
+
+			NamesCollector namesCollector= new NamesCollector();
+			methodDeclaration.accept(namesCollector);
+			return namesCollector.fNames;
+		}
+
+		private String createName(String candidate, HashSet<String> excludedNames) {
+			int i= 1;
+			String result= candidate;
+			while (excludedNames.contains(result)) {
+				result= candidate + i++;
+			}
+			return result;
 		}
 	}
 
@@ -320,7 +425,13 @@ public class LambdaExpressionsFix extends CompilationUnitRewriteOperationsFix {
 				classInstanceCreation.setType(creationType);
 				classInstanceCreation.setAnonymousClassDeclaration(anonymousClassDeclaration);
 
-				rewrite.replace(lambdaExpression, classInstanceCreation, group);
+				ASTNode toReplace= lambdaExpression;
+				if (lambdaExpression.getLocationInParent() == CastExpression.EXPRESSION_PROPERTY
+						&& lambdaTypeBinding.isEqualTo(((CastExpression) lambdaExpression.getParent()).resolveTypeBinding())) {
+					// remove cast to same type as the anonymous will use
+					toReplace= lambdaExpression.getParent();
+				}
+				rewrite.replace(toReplace, classInstanceCreation, group);
 			}
 		}
 	}
@@ -418,6 +529,10 @@ public class LambdaExpressionsFix extends CompilationUnitRewriteOperationsFix {
 	}
 
 	private static boolean isInTargetTypeContext(ClassInstanceCreation node) {
+		ITypeBinding targetType= ASTNodes.getTargetType(node);
+		return targetType != null && targetType.getFunctionalInterfaceMethod() != null;
+
+		/*
 		//TODO: probably incomplete, should reuse https://bugs.eclipse.org/bugs/show_bug.cgi?id=408966#c6
 		StructuralPropertyDescriptor locationInParent= node.getLocationInParent();
 		
@@ -449,5 +564,6 @@ public class LambdaExpressionsFix extends CompilationUnitRewriteOperationsFix {
 				|| locationInParent == ConditionalExpression.THEN_EXPRESSION_PROPERTY
 				|| locationInParent == ConditionalExpression.ELSE_EXPRESSION_PROPERTY
 				|| locationInParent == CastExpression.EXPRESSION_PROPERTY;
-		}
+		*/
+	}
 }

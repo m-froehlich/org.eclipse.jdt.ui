@@ -37,6 +37,7 @@ public final class CorrectionMessages extends NLS {
 	public static String ModifierCorrectionSubProcessor_addsynchronized_description;
 	public static String ModifierCorrectionSubProcessor_changefieldmodifiertononstatic_description;
 	public static String ModifierCorrectionSubProcessor_changemodifiertostaticfinal_description;
+	public static String ModifierCorrectionSubProcessor_changemodifiertodefault_description;
 	public static String ModifierCorrectionSubProcessor_overrides_deprecated_description;
 	public static String ModifierCorrectionSubProcessor_remove_override;
 	public static String ModifierCorrectionSubProcessor_removefinal_description;
@@ -55,7 +56,6 @@ public final class CorrectionMessages extends NLS {
 	public static String QuickAssistProcessor_convert_to_string_buffer_description;
 	public static String QuickAssistProcessor_exceptiontothrows_description;
 	public static String QuickAssistProcessor_extract_to_constant_description;
-	public static String QuickAssistProcessor_infer_diamond_description;
 	public static String QuickAssistProcessor_inline_local_description;
 	public static String QuickAssistProcessor_name_extension_from_class;
 	public static String QuickAssistProcessor_name_extension_from_interface;
@@ -135,6 +135,8 @@ public final class CorrectionMessages extends NLS {
 	public static String RemoveDeclarationCorrectionProposal_removeunusedvar_description;
 	public static String RenameRefactoringProposal_additionalInfo;
 	public static String RenameRefactoringProposal_name;
+
+	public static String ModifierCorrectionSubProcessor_changemodifiertoabstract_description;
 	public static String ModifierCorrectionSubProcessor_changemodifiertostatic_description;
 	public static String ModifierCorrectionSubProcessor_changemodifiertononstatic_description;
 	public static String ModifierCorrectionSubProcessor_changemodifiertofinal_description;
@@ -146,7 +148,6 @@ public final class CorrectionMessages extends NLS {
 	public static String ModifierCorrectionSubProcessor_addabstract_description;
 	public static String ModifierCorrectionSubProcessor_removenative_description;
 	public static String ModifierCorrectionSubProcessor_addmissingbody_description;
-	public static String ModifierCorrectionSubProcessor_setmethodabstract_description;
 	public static String ModifierCorrectionSubProcessor_changemethodtononfinal_description;
 	public static String ModifierCorrectionSubProcessor_changeoverriddenvisibility_description;
 	public static String ModifierCorrectionSubProcessor_changemethodvisibility_description;
@@ -172,8 +173,6 @@ public final class CorrectionMessages extends NLS {
 	public static String UnimplementedCodeFix_TextEditGroup_label;
 
 	public static String UnresolvedElementsSubProcessor_swaparguments_description;
-	public static String UnresolvedElementsSubProcessor_add_annotation_bundle_description;
-	public static String UnresolvedElementsSubProcessor_add_annotation_bundle_info;
 	public static String UnresolvedElementsSubProcessor_add_static_import_description;
 	public static String UnresolvedElementsSubProcessor_addargumentcast_description;
 	public static String UnresolvedElementsSubProcessor_changemethod_description;
@@ -377,7 +376,6 @@ public final class CorrectionMessages extends NLS {
 	public static String UnresolvedElementsSubProcessor_copy_annotation_jar_info;
 	public static String LocalCorrectionsSubProcessor_remove_allocated_description;
 	public static String LocalCorrectionsSubProcessor_remove_redundant_superinterface;
-	public static String LocalCorrectionsSubProcessor_remove_type_arguments;
 	public static String LocalCorrectionsSubProcessor_return_allocated_description;
 	public static String LocalCorrectionsSubProcessor_qualify_left_hand_side_description;
 	public static String LocalCorrectionsSubProcessor_qualify_right_hand_side_description;

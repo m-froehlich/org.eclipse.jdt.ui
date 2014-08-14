@@ -866,4 +866,236 @@ public class QuickFixTest18 extends QuickFixTest {
 		buf.append("}\n");
 		assertEqualStringsIgnoreOrder(new String[] { getPreviewContent(proposal) }, new String[] { buf.toString() });
 	}
+
+	// bug 410170
+	public void testInvalidInterfaceMethodModifier1() throws Exception {
+		IPackageFragment pack1= fSourceFolder.createPackageFragment("test1", false, null);
+		StringBuffer buf= new StringBuffer();
+		buf.append("package test1;\n");
+		buf.append("import java.io.IOException;\n");
+		buf.append("public interface Inter {\n");
+		buf.append("    private static int staticMethod(Object[] o) throws IOException{return 10;}\n");
+		buf.append("}\n");
+		ICompilationUnit cu= pack1.createCompilationUnit("Inter.java", buf.toString(), false, null);
+
+		CompilationUnit astRoot= getASTRoot(cu);
+		ArrayList proposals= collectCorrections(cu, astRoot);
+		assertNumberOfProposals(proposals, 1);
+		assertCorrectLabels(proposals);
+
+		CUCorrectionProposal proposal= (CUCorrectionProposal)proposals.get(0);
+		String preview1= getPreviewContent(proposal);
+
+		buf= new StringBuffer();
+		buf.append("package test1;\n");
+		buf.append("import java.io.IOException;\n");
+		buf.append("public interface Inter {\n");
+		buf.append("    static int staticMethod(Object[] o) throws IOException{return 10;}\n");
+		buf.append("}\n");
+		String expected1= buf.toString();
+
+		assertEqualStringsIgnoreOrder(new String[] { preview1 }, new String[] { expected1 });
+	}
+
+	//  bug 410170
+	public void testInvalidInterfaceMethodModifier2() throws Exception {
+		IPackageFragment pack1= fSourceFolder.createPackageFragment("test1", false, null);
+		StringBuffer buf= new StringBuffer();
+		buf.append("package test1;\n");
+		buf.append("import java.io.IOException;\n");
+		buf.append("public interface Inter {\n");
+		buf.append("    protected default int defaultMethod(Object[] o) throws IOException{return 10;}\n");
+		buf.append("}\n");
+		ICompilationUnit cu= pack1.createCompilationUnit("Inter.java", buf.toString(), false, null);
+
+		CompilationUnit astRoot= getASTRoot(cu);
+		ArrayList proposals= collectCorrections(cu, astRoot);
+		assertNumberOfProposals(proposals, 1);
+		assertCorrectLabels(proposals);
+
+		CUCorrectionProposal proposal= (CUCorrectionProposal)proposals.get(0);
+		String preview1= getPreviewContent(proposal);
+
+		buf= new StringBuffer();
+		buf.append("package test1;\n");
+		buf.append("import java.io.IOException;\n");
+		buf.append("public interface Inter {\n");
+		buf.append("    default int defaultMethod(Object[] o) throws IOException{return 10;}\n");
+		buf.append("}\n");
+		String expected1= buf.toString();
+
+		assertEqualStringsIgnoreOrder(new String[] { preview1 }, new String[] { expected1 });
+	}
+
+	// bug 414084
+	public void testAbstractInterfaceMethodWithBody1() throws Exception {
+		StringBuffer buf= new StringBuffer();
+		IPackageFragment pack1= fSourceFolder.createPackageFragment("test1", false, null);
+		buf= new StringBuffer();
+		buf.append("package test1;\n");
+		buf.append("public interface Snippet{\n");
+		buf.append("\n");
+		buf.append("    public char m1(int arg0) {\n");
+		buf.append("    }\n\n");
+		buf.append("}\n");
+		ICompilationUnit cu= pack1.createCompilationUnit("Snippet.java", buf.toString(), false, null);
+
+		CompilationUnit astRoot= getASTRoot(cu);
+		ArrayList proposals= collectCorrections(cu, astRoot, 1);
+		assertNumberOfProposals(proposals, 3);
+		assertCorrectLabels(proposals);
+
+		CUCorrectionProposal proposal= (CUCorrectionProposal)proposals.get(0);
+		String preview1= getPreviewContent(proposal);
+
+		buf= new StringBuffer();
+		buf.append("package test1;\n");
+		buf.append("public interface Snippet{\n");
+		buf.append("\n");
+		buf.append("    public char m1(int arg0);\n\n");
+		buf.append("}\n");
+		String expected1= buf.toString();
+
+		proposal= (CUCorrectionProposal)proposals.get(1);
+		String preview2= getPreviewContent(proposal);
+
+		buf= new StringBuffer();
+		buf.append("package test1;\n");
+		buf.append("public interface Snippet{\n");
+		buf.append("\n");
+		buf.append("    public static char m1(int arg0) {\n");
+		buf.append("    }\n\n");
+		buf.append("}\n");
+		String expected2= buf.toString();
+
+		proposal= (CUCorrectionProposal)proposals.get(2);
+		String preview3= getPreviewContent(proposal);
+
+		buf= new StringBuffer();
+		buf.append("package test1;\n");
+		buf.append("public interface Snippet{\n");
+		buf.append("\n");
+		buf.append("    public default char m1(int arg0) {\n");
+		buf.append("    }\n\n");
+		buf.append("}\n");
+		String expected3= buf.toString();
+
+		assertEqualStringsIgnoreOrder(new String[] { preview1, preview2, preview3 }, new String[] { expected1, expected2, expected3 });
+
+	}
+
+	// bug 414084
+	public void testAbstractInterfaceMethodWithBody2() throws Exception {
+		StringBuffer buf= new StringBuffer();
+		IPackageFragment pack1= fSourceFolder.createPackageFragment("test1", false, null);
+		buf= new StringBuffer();
+		buf.append("package test1;\n");
+		buf.append("public interface Snippet{\n");
+		buf.append("\n");
+		buf.append("    public abstract char m1(int arg0) {\n");
+		buf.append("    }\n\n");
+		buf.append("}\n");
+		ICompilationUnit cu= pack1.createCompilationUnit("Snippet.java", buf.toString(), false, null);
+
+		CompilationUnit astRoot= getASTRoot(cu);
+		ArrayList proposals= collectCorrections(cu, astRoot, 1);
+		assertNumberOfProposals(proposals, 3);
+		assertCorrectLabels(proposals);
+
+		CUCorrectionProposal proposal= (CUCorrectionProposal)proposals.get(0);
+		String preview1= getPreviewContent(proposal);
+
+		buf= new StringBuffer();
+		buf.append("package test1;\n");
+		buf.append("public interface Snippet{\n");
+		buf.append("\n");
+		buf.append("    public abstract char m1(int arg0);\n\n");
+		buf.append("}\n");
+		String expected1= buf.toString();
+
+		proposal= (CUCorrectionProposal)proposals.get(1);
+		String preview2= getPreviewContent(proposal);
+
+		buf= new StringBuffer();
+		buf.append("package test1;\n");
+		buf.append("public interface Snippet{\n");
+		buf.append("\n");
+		buf.append("    public static char m1(int arg0) {\n");
+		buf.append("    }\n\n");
+		buf.append("}\n");
+		String expected2= buf.toString();
+
+		proposal= (CUCorrectionProposal)proposals.get(2);
+		String preview3= getPreviewContent(proposal);
+
+		buf= new StringBuffer();
+		buf.append("package test1;\n");
+		buf.append("public interface Snippet{\n");
+		buf.append("\n");
+		buf.append("    public default char m1(int arg0) {\n");
+		buf.append("    }\n\n");
+		buf.append("}\n");
+		String expected3= buf.toString();
+
+		assertEqualStringsIgnoreOrder(new String[] { preview1, preview2, preview3 }, new String[] { expected1, expected2, expected3 });
+	}
+
+	// bug 424616
+	public void testInferredExceptionType() throws Exception {
+		StringBuffer buf= new StringBuffer();
+		IPackageFragment pack1= fSourceFolder.createPackageFragment("test1", false, null);
+		buf= new StringBuffer();
+		buf.append("package test1;\n");
+		buf.append("public class AddThrows {\n");
+		buf.append("  interface Getter2<T, E extends Exception> { T get() throws E; }\n");
+		buf.append("  \n");
+		buf.append("  public static Long main2(Getter2<Long, ?> getter) {\n");
+		buf.append("    Long value = getter == null ? 0l : 1l;\n");
+		buf.append("    value = getter.get();\n");
+		buf.append("    return value;\n");
+		buf.append("  }\n");
+		buf.append("}\n");
+		ICompilationUnit cu= pack1.createCompilationUnit("AddThrows.java", buf.toString(), false, null);
+
+		CompilationUnit astRoot= getASTRoot(cu);
+		ArrayList proposals= collectCorrections(cu, astRoot, 1);
+		assertNumberOfProposals(proposals, 2);
+		assertCorrectLabels(proposals);
+
+		CUCorrectionProposal proposal= (CUCorrectionProposal)proposals.get(0);
+
+		buf= new StringBuffer();
+		buf.append("package test1;\n");
+		buf.append("public class AddThrows {\n");
+		buf.append("  interface Getter2<T, E extends Exception> { T get() throws E; }\n");
+		buf.append("  \n");
+		buf.append("  public static Long main2(Getter2<Long, ?> getter) {\n");
+		buf.append("    Long value = getter == null ? 0l : 1l;\n");
+		buf.append("    try {\n");
+		buf.append("        value = getter.get();\n");
+		buf.append("    } catch (Exception e) {\n");
+		buf.append("        // TODO Auto-generated catch block\n");
+		buf.append("        e.printStackTrace();\n");
+		buf.append("    }\n");
+		buf.append("    return value;\n");
+		buf.append("  }\n");
+		buf.append("}\n");
+		assertEqualStringsIgnoreOrder(new String[] { getPreviewContent(proposal) }, new String[] { buf.toString() });
+
+		proposal= (CUCorrectionProposal)proposals.get(1);
+
+		buf= new StringBuffer();
+		buf.append("package test1;\n");
+		buf.append("public class AddThrows {\n");
+		buf.append("  interface Getter2<T, E extends Exception> { T get() throws E; }\n");
+		buf.append("  \n");
+		buf.append("  public static Long main2(Getter2<Long, ?> getter) throws Exception {\n");
+		buf.append("    Long value = getter == null ? 0l : 1l;\n");
+		buf.append("    value = getter.get();\n");
+		buf.append("    return value;\n");
+		buf.append("  }\n");
+		buf.append("}\n");
+		assertEqualStringsIgnoreOrder(new String[] { getPreviewContent(proposal) }, new String[] { buf.toString() });
+	}
+
 }

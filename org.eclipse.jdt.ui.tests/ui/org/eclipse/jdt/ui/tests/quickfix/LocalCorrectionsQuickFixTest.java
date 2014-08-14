@@ -9,6 +9,7 @@
  *     IBM Corporation - initial API and implementation
  *     Benjamin Muskalla <bmuskalla@innoopract.com> - [quick fix] Shouldn't offer "Add throws declaration" quickfix for overriding signature if result would conflict with overridden signature
  *     Lukas Hanke <hanke@yatta.de> - Bug 241696 [quick fix] quickfix to iterate over a collection - https://bugs.eclipse.org/bugs/show_bug.cgi?id=241696
+ *     Lukas Hanke <hanke@yatta.de> - Bug 430818 [1.8][quick fix] Quick fix for "for loop" is not shown for bare local variable/argument/field - https://bugs.eclipse.org/bugs/show_bug.cgi?id=430818
  *******************************************************************************/
 package org.eclipse.jdt.ui.tests.quickfix;
 
@@ -49,6 +50,18 @@ import org.eclipse.jdt.internal.ui.text.correction.proposals.LinkedNamesAssistPr
 public class LocalCorrectionsQuickFixTest extends QuickFixTest {
 
 	private static final Class THIS= LocalCorrectionsQuickFixTest.class;
+
+	/**
+	 * Bug 430818: [1.8][quick fix] Quick fix for "for loop" is not shown for bare local variable/argument/field
+	 * caused by:
+	 * Bug 430336: [1.8][compiler] Bad syntax error recovery: Lonely identifier should be variable name, not type
+	 */
+	public static final boolean BUG_430818= false;
+	
+	/**
+	 * Bug 434188: [quick fix] shows sign of quick fix, but says no suggestions available.
+	 */
+	public static final boolean BUG_434188= true;
 
 	private IJavaProject fJProject1;
 	private IPackageFragmentRoot fSourceFolder;
@@ -1851,13 +1864,7 @@ public class LocalCorrectionsQuickFixTest extends QuickFixTest {
 	}
 
 
-	boolean BUG_25417= true;
-
 	public void testUncaughtExceptionDuplicate() throws Exception {
-		if (BUG_25417) {
-			return;
-		}
-
 		IPackageFragment pack1= fSourceFolder.createPackageFragment("test1", false, null);
 		StringBuffer buf= new StringBuffer();
 		buf.append("package test1;\n");
@@ -7697,7 +7704,48 @@ public class LocalCorrectionsQuickFixTest extends QuickFixTest {
 		
 		assertExpectedExistInProposals(proposals, expected);
 	}
-	
+
+	public void testUnusedObjectAllocation3() throws Exception {
+		Hashtable options= JavaCore.getOptions();
+		options.put(JavaCore.COMPILER_PB_UNUSED_OBJECT_ALLOCATION, JavaCore.WARNING);
+		JavaCore.setOptions(options);
+
+		IPackageFragment pack1= fSourceFolder.createPackageFragment("test1", false, null);
+		StringBuffer buf= new StringBuffer();
+		buf.append("package test1;\n");
+		buf.append("\n");
+		buf.append("public class E {\n");
+		buf.append("    private Object name;\n");
+		buf.append("    public E() {\n");
+		buf.append("        if (name == null)\n");
+		buf.append("            new IllegalArgumentException();\n");
+		buf.append("    }\n");
+		buf.append("}\n");
+		ICompilationUnit cu= pack1.createCompilationUnit("E.java", buf.toString(), false, null);
+
+		CompilationUnit astRoot= getASTRoot(cu);
+		ArrayList proposals= collectCorrections(cu, astRoot);
+
+		assertCorrectLabels(proposals);
+		assertNumberOfProposals(proposals, 5);
+
+		String expected= new String();
+		buf= new StringBuffer();
+		buf.append("package test1;\n");
+		buf.append("\n");
+		buf.append("public class E {\n");
+		buf.append("    private Object name;\n");
+		buf.append("    public E() {\n");
+		buf.append("        if (name == null)\n");
+		buf.append("            throw new IllegalArgumentException();\n");
+		buf.append("    }\n");
+		buf.append("}\n");
+		expected= buf.toString();
+
+
+		assertExpectedExistInProposals(proposals, new String[] { expected });
+	}
+
 	public void testUnnessecaryNLSTag1() throws Exception {
 		Hashtable options= JavaCore.getOptions();
 		options.put(JavaCore.COMPILER_PB_NON_NLS_STRING_LITERAL, JavaCore.WARNING);
@@ -9753,6 +9801,11 @@ public class LocalCorrectionsQuickFixTest extends QuickFixTest {
 	 * @throws Exception
 	 */
 	public void testLoopOverAddedToFixesForVariable() throws Exception {
+		if (BUG_434188)
+			return;
+		if (BUG_430818)
+			return;
+		
 		IPackageFragment pack1= fSourceFolder.createPackageFragment("test1", false, null);
 		StringBuffer buf= new StringBuffer();
 		buf.append("package test1;\n");
@@ -9769,7 +9822,7 @@ public class LocalCorrectionsQuickFixTest extends QuickFixTest {
 		newOptions.put(DefaultCodeFormatterConstants.FORMATTER_PUT_EMPTY_STATEMENT_ON_NEW_LINE, "true");
 		try {
 			fJProject1.setOptions(newOptions);
-			List proposals= collectCorrections(cu, getASTRoot(cu), 2, null);
+			List proposals= collectCorrections(cu, getASTRoot(cu), 3, null);
 
 			assertNumberOfProposals(proposals, 2);
 			assertCorrectLabels(proposals);
@@ -9793,8 +9846,7 @@ public class LocalCorrectionsQuickFixTest extends QuickFixTest {
 			buf.append("import java.util.Iterator;\n");
 			buf.append("public class E {\n");
 			buf.append("    void foo(Collection<String> collection) {\n");
-			buf.append("        for (Iterator<String> iterator = collection.iterator(); iterator\n");
-			buf.append("                .hasNext();) {\n");
+			buf.append("        for (Iterator<String> iterator = collection.iterator(); iterator.hasNext();) {\n");
 			buf.append("            String string = iterator.next();\n");
 			buf.append("            \n");
 			buf.append("        }\n");
@@ -9815,6 +9867,9 @@ public class LocalCorrectionsQuickFixTest extends QuickFixTest {
 	 * @throws Exception
 	 */
 	public void testLoopOverAddedToFixesForMethodInvocation() throws Exception {
+		if (BUG_434188)
+			return;
+
 		IPackageFragment pack1= fSourceFolder.createPackageFragment("test1", false, null);
 		StringBuffer buf= new StringBuffer();
 		buf.append("package test1;\n");
@@ -9877,6 +9932,11 @@ public class LocalCorrectionsQuickFixTest extends QuickFixTest {
 	 * @throws Exception
 	 */
 	public void testGenerateForeachNotAddedForLowVersion() throws Exception {
+		if (BUG_434188)
+			return;
+		if (BUG_430818)
+			return;
+		
 		IPackageFragment pack1= fSourceFolder.createPackageFragment("test1", false, null);
 		StringBuffer buf= new StringBuffer();
 		buf.append("package test1;\n");
@@ -9894,7 +9954,7 @@ public class LocalCorrectionsQuickFixTest extends QuickFixTest {
 		newOptions.put(DefaultCodeFormatterConstants.FORMATTER_PUT_EMPTY_STATEMENT_ON_NEW_LINE, "true");
 		try {
 			fJProject1.setOptions(newOptions);
-			List proposals= collectCorrections(cu, getASTRoot(cu), 2, null);
+			List proposals= collectCorrections(cu, getASTRoot(cu), 3, null);
 
 			assertNumberOfProposals(proposals, 1);
 			assertCorrectLabels(proposals);
@@ -9909,8 +9969,7 @@ public class LocalCorrectionsQuickFixTest extends QuickFixTest {
 			buf.append("import java.util.Iterator;\n");
 			buf.append("public class E {\n");
 			buf.append("    void foo(Collection collection) {\n");
-			buf.append("        for (Iterator iterator = collection.iterator(); iterator\n");
-			buf.append("                .hasNext();) {\n");
+			buf.append("        for (Iterator iterator = collection.iterator(); iterator.hasNext();) {\n");
 			buf.append("            Object object = iterator.next();\n");
 			buf.append("            \n");
 			buf.append("        }\n");
@@ -9923,4 +9982,46 @@ public class LocalCorrectionsQuickFixTest extends QuickFixTest {
 			fJProject1.setOptions(saveOptions);
 		}
 	}
+
+	public void testInsertInferredTypeArguments() throws Exception {
+
+		IPackageFragment pack1= fSourceFolder.createPackageFragment("test1", false, null);
+		StringBuffer buf= new StringBuffer();
+		buf.append("package test1;\n");
+		buf.append("import java.util.ArrayList;\n");
+		buf.append("import java.util.List;\n");
+		buf.append("\n");
+		buf.append("public class E {\n");
+		buf.append("\n");
+		buf.append("    private void foo() {\n");
+		buf.append("        List<String> al1 = new ArrayList<>();\n");
+		buf.append("\n");
+		buf.append("    }\n");
+		buf.append("}\n");
+		ICompilationUnit cu= pack1.createCompilationUnit("E.java", buf.toString(), false, null);
+
+		ArrayList proposals= collectCorrections2(cu, 1);
+		assertCorrectLabels(proposals);
+
+		CUCorrectionProposal proposal= (CUCorrectionProposal)proposals.get(0);
+		String preview= getPreviewContent(proposal);
+
+		buf= new StringBuffer();
+		buf.append("package test1;\n");
+		buf.append("import java.util.ArrayList;\n");
+		buf.append("import java.util.List;\n");
+		buf.append("\n");
+		buf.append("public class E {\n");
+		buf.append("\n");
+		buf.append("    private void foo() {\n");
+		buf.append("        List<String> al1 = new ArrayList<String>();\n");
+		buf.append("\n");
+		buf.append("    }\n");
+		buf.append("}\n");
+		assertEqualString(preview, buf.toString());
+
+		String expected1= buf.toString();
+		assertExpectedExistInProposals(proposals, new String[] { expected1 });
+	}
+
 }

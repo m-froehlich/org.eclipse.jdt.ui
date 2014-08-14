@@ -47,6 +47,8 @@ public interface IProposalRelevance {
 	public static final int CREATE_FIELD_PREFIX_OR_SUFFIX_MATCH= 9;
 
 	public static final int ADD_ABSTRACT_MODIFIER= 8;
+	public static final int ADD_STATIC_MODIFIER= 8;
+	public static final int ADD_DEFAULT_MODIFIER= 8;
 	public static final int ADD_PARENTHESES_AROUND_CAST= 8;
 	public static final int REMOVE_ARGUMENTS= 8;
 	public static final int QUALIFY_WITH_ENCLOSING_TYPE= 8;
@@ -85,8 +87,6 @@ public interface IProposalRelevance {
 	public static final int INSERT_INFERRED_TYPE_ARGUMENTS= 7;
 	public static final int RETURN_ALLOCATED_OBJECT_MATCH= 7;
 	public static final int CREATE_LOCAL= 7;
-	public static final int CHANGE_LAMBDA_BODY_TO_BLOCK= 7;
-	public static final int CHANGE_LAMBDA_BODY_TO_EXPRESSION= 7;
 	
 	public static final int REMOVE_SEMICOLON= 6;
 	public static final int CREATE_METHOD_IN_SUPER= 6;
@@ -122,7 +122,6 @@ public interface IProposalRelevance {
 	public static final int EXTRACT_LOCAL_ALL= 6;
 	public static final int CHANGE_TO_ATTRIBUTE_SIMILAR_NAME= 6;
 	public static final int CREATE_FIELD= 6;
-	public static final int CONVERT_TO_ANONYMOUS_CLASS_CREATION= 6;
 	public static final int CONVERT_TO_LAMBDA_EXPRESSION= 6;
 
 	public static final int ADD_ALL_MISSING_TAGS= 5;
@@ -141,7 +140,6 @@ public interface IProposalRelevance {
 	public static final int OVERRIDE_HASHCODE= 5;
 	public static final int ADD_BLOCK= 5;
 	public static final int MAKE_TYPE_ABSTRACT= 5;
-	public static final int MAKE_VARIABLE_DECLARATION_FINAL= 5;
 	public static final int ADD_MISSING_NLS_TAGS= 5;
 	public static final int CREATE_NON_STATIC_ACCESS_USING_INSTANCE_TYPE= 5;
 	public static final int MAKE_TYPE_ABSTRACT_FIX= 5;
@@ -204,6 +202,8 @@ public interface IProposalRelevance {
 	public static final int ASSIGN_TO_LOCAL= 3;
 	public static final int CHANGE_CAST= 3;
 	public static final int CHANGE_TO_ATTRIBUTE= 3;
+	public static final int CHANGE_LAMBDA_BODY_TO_BLOCK= 3;
+	public static final int CHANGE_LAMBDA_BODY_TO_EXPRESSION= 3;
 
 	public static final int CONVERT_TO_INDEXED_FOR_LOOP= 2;
 	public static final int GENERATE_ENHANCED_FOR_LOOP= 2;
@@ -214,6 +214,7 @@ public interface IProposalRelevance {
 	public static final int ASSIGN_TO_FIELD= 2;
 	public static final int RETURN_ALLOCATED_OBJECT= 2;
 	public static final int REMOVE_BLOCK_FIX= 2;
+	public static final int CONVERT_TO_ANONYMOUS_CLASS_CREATION= 2;
 
 	public static final int JOIN_VARIABLE_DECLARATION= 1;
 	public static final int INVERT_EQUALS= 1;
@@ -268,7 +269,6 @@ public interface IProposalRelevance {
 
 	public static final int CONVERT_TO_MESSAGE_FORMAT= 0;
 	public static final int COPY_ANNOTATION_JAR= 0;
-	public static final int ADD_ANNOTATION_BUNDLE= 0;
 	public static final int NO_SUGGESSTIONS_AVAILABLE= 0;
 	public static final int ADD_QUOTE= 0;
 	public static final int NEW_TYPE= 0;
@@ -276,6 +276,7 @@ public interface IProposalRelevance {
 	public static final int EXTRACT_LOCAL_ALL_ZERO_SELECTION= 0;
 
 	public static final int EXTRACT_LOCAL_ZERO_SELECTION= -1;
+	public static final int MAKE_VARIABLE_DECLARATION_FINAL= -1;
 
 	public static final int ADD_SUPPRESSWARNINGS= -2;
 	public static final int VARIABLE_TYPE_PROPOSAL_2= -2;

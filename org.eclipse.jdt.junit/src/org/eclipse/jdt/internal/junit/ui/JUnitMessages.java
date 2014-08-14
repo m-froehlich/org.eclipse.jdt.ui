@@ -219,7 +219,8 @@ public final class JUnitMessages extends NLS {
 	public static String OpenEditorAction_error_dialog_title;
 	public static String OpenEditorAction_message_cannotopen;
 	public static String OpenTestAction_error_methodNoFound;
-	public static String OpenTestAction_error_title;
+	public static String OpenTestAction_dialog_title;
+	public static String OpenTestAction_select_element;
 	public static String RerunAction_label_debug;
 	public static String RerunAction_label_run;
 	public static String RerunAction_label_rerun;

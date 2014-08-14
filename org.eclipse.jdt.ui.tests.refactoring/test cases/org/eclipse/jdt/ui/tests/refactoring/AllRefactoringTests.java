@@ -22,12 +22,15 @@ public class AllRefactoringTests {
 		TestSuite suite= new TestSuite(clazz.getName());
 
 		suite.addTest(RenameTests18.suite());
+		suite.addTest(InlineTempTests18.suite());
+		suite.addTest(InlineConstantTests18.suite());
 
 		//--code
 		suite.addTest(ExtractMethodTests.suite());
 		suite.addTest(ExtractMethodTests17.suite());
 		suite.addTest(ExtractMethodTests18.suite());
 		suite.addTest(InlineMethodTests.suite());
+		suite.addTest(InlineMethodTests18.suite());
 		suite.addTest(ReplaceInvocationsTests.suite());
 		suite.addTest(SefTests.suite());
 		suite.addTest(InlineTempTests.suite());
@@ -37,6 +40,7 @@ public class AllRefactoringTests {
 		suite.addTest(RenameTempTests.suite());
 		suite.addTest(ExtractConstantTests.suite());
 		suite.addTest(PromoteTempToFieldTests.suite());
+		suite.addTest(PromoteTempToFieldTests18.suite());
 		suite.addTest(ConvertAnonymousToNestedTests.suite());
 		suite.addTest(InlineConstantTests.suite());
 		suite.addTest(InlineConstantTests17.suite());
@@ -49,6 +53,7 @@ public class AllRefactoringTests {
 		suite.addTest(ChangeSignatureTests18.suite());
 		suite.addTest(IntroduceParameterObjectTests.suite());
 		suite.addTest(PullUpTests.suite());
+		suite.addTest(PullUpTests18.suite());
 		suite.addTest(PushDownTests.suite());
 		suite.addTest(MoveMembersTests.suite());
 		suite.addTest(MoveMembersTests18.suite());
@@ -69,8 +74,10 @@ public class AllRefactoringTests {
 		suite.addTest(RenameStaticMethodTests.suite());
 		suite.addTest(RenameParametersTests.suite());
 		suite.addTest(MoveInstanceMethodTests.suite());
+		suite.addTest(MoveInstanceMethodTests18.suite());
 		suite.addTest(IntroduceIndirectionTests.suite());
 		suite.addTest(IntroduceIndirectionTests17.suite());
+		suite.addTest(IntroduceIndirectionTests18.suite());
 
 		//--types
 		suite.addTest(RenameTypeTests.suite());

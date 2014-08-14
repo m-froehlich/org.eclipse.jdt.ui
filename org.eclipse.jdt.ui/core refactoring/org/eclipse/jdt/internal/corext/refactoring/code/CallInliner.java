@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2013 IBM Corporation and others.
+ * Copyright (c) 2000, 2014 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -482,6 +482,7 @@ public class CallInliner {
 			case ASTNode.INITIALIZER:
 			case ASTNode.FIELD_DECLARATION:
 			case ASTNode.METHOD_DECLARATION:
+			case ASTNode.ENUM_CONSTANT_DECLARATION:
 				fFlowInfo= new InputFlowAnalyzer(fFlowContext, selection, true).perform(fBodyDeclaration);
 				break;
 			default:
@@ -724,7 +725,12 @@ public class CallInliner {
 			ITypeBinding[] parameters= method.getParameterTypes();
 			int argumentIndex= methodInvocation.arguments().indexOf(fInvocation);
 
-			parameters[argumentIndex]= returnExprs.get(0).resolveTypeBinding();
+			ITypeBinding parameterType= returnExprs.get(0).resolveTypeBinding();
+			if (method.isVarargs() && argumentIndex >= parameters.length - 1) {
+				argumentIndex= parameters.length - 1;
+				parameterType= parameterType.createArrayType(1);
+			}
+			parameters[argumentIndex]= parameterType;
 
 			ITypeBinding type= ASTNodes.getReceiverTypeBinding(methodInvocation);
 			TypeBindingVisitor visitor= new AmbiguousMethodAnalyzer(
@@ -816,6 +822,9 @@ public class CallInliner {
 		ASTNode parentStatement= fInvocation instanceof Statement
 			? fInvocation
 			: ASTNodes.getParent(fInvocation, Statement.class);
+		if (parentStatement == null)
+			return;
+
 		ASTNode container= parentStatement.getParent();
 		int type= container.getNodeType();
 		if (type == ASTNode.BLOCK) {
